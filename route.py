@@ -87,7 +87,18 @@ class Route:
                 raise ValueError("destlen == 0 and dest isn't a default route")
 
         self.is_default = (destlen == 0)
-        self.multipath = len(nexthops) > 1
+        self.multipath = (len(nexthops) > 1)
+
+    def add_nexthops(self, nexthops):
+        """Add nexthops from a list.
+
+        No check is made for duplicate nexthops; if a new nexthop matches
+        an already existing one, both will be stored.
+
+        """
+        self.nexthops += nexthops
+
+        self.multipath = True
 
     def __str__(self):
         """Convert to a string."""
