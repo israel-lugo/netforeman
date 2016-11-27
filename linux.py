@@ -28,6 +28,7 @@ import netaddr
 import pyroute2
 
 import route
+import rttable
 
 
 def nexthop_from_mpath_msg(ipr, msg):
@@ -157,8 +158,8 @@ def get_routes(ipr, family):
 if __name__ == '__main__':
     ipr = pyroute2.IPRoute()
 
-    rt4 = get_routes(ipr, socket.AF_INET)
-    rt6 = get_routes(ipr, socket.AF_INET6)
+    rt4 = rttable.RoutingTable(get_routes(ipr, socket.AF_INET))
+    rt6 = rttable.RoutingTable(get_routes(ipr, socket.AF_INET6))
 
     for r in rt4:
         print(r)
