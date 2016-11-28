@@ -93,13 +93,15 @@ class LinuxFIBInterface(route.FIBInterface):
 
         try:
             if not r.multipath:
+                nh = r.nexthops[0]
+
                 self.ipr.route(
                     cmd,
                     dst=str(r.dest),
                     type=r.rt_type,
                     proto=r.proto,
-                    gateway=str(r.nexthop[0].gw),
-                    oif=self._get_ifidx(r.nexthop[0].ifname)
+                    gateway=str(nh.gw),
+                    oif=self._get_ifidx(nh.ifname)
                 )
             else:
                 self.ipr.route(
