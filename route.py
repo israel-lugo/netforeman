@@ -172,3 +172,32 @@ class FIBInterface:
 
         """
         raise NotImplementedError()
+
+    def change_route(self, r):
+        """Change an existing route in the FIB.
+
+        Raises route.FIBError in case of error (such as no permissions,
+        route doesn't exist, and so on).
+
+        """
+        raise NotImplementedError()
+
+    def delete_route(self, r):
+        """Delete an existing route from the FIB.
+
+        Raises route.FIBError in case of error (such as no permissions,
+        route doesn't exist, and so on).
+
+        """
+        raise NotImplementedError()
+
+    def replace_route(self, r):
+        """Replace a route in the FIB.
+
+        If the route exists, it is changed. If it doesn't exist, a new one
+        is created. Raises route.FIBError in case of error (such as no
+        permissions, and so on).
+
+        """
+        raise NotImplementedError()
+

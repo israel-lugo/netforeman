@@ -49,10 +49,52 @@ class LinuxFIBInterface(route.FIBInterface):
         route already exists, and so on).
 
         """
+        self._route_cmd("add", r)
+
+    def change_route(self, r):
+        """Change an existing route in the FIB.
+
+        Raises route.FIBError in case of error (such as no permissions,
+        route doesn't exist, and so on).
+
+        """
+        self._route_cmd("change", r)
+
+    def delete_route(self, r):
+        """Delete an existing route from the FIB.
+
+        Raises route.FIBError in case of error (such as no permissions,
+        route doesn't exist, and so on).
+
+        """
+        self._route_cmd("del", r)
+
+    def replace_route(self, r):
+        """Replace a route in the FIB.
+
+        If the route exists, it is changed. If it doesn't exist, a new one
+        is created. Raises route.FIBError in case of error (such as no
+        permissions, and so on).
+
+        """
+        self._route_cmd("replace", r)
+
+    def _route_cmd(self, cmd, r):
+        """Run a route command on the FIB.
+
+        cmd must be one of "add", "del", "change" or "replace".
+
+        Raises route.FIBError in case of error (such as no permissions,
+        route already exists, and so on).
+
+        """
+        if cmd not in ("add", "del", "change", "replace"):
+            raise ValueError("invalid cmd '{:s}'".format(cmd))
+
         try:
             if not r.multipath:
                 self.ipr.route(
-                    "add",
+                    cmd,
                     dst=str(r.dest),
                     type=r.rt_type,
                     proto=r.proto,
@@ -61,7 +103,7 @@ class LinuxFIBInterface(route.FIBInterface):
                 )
             else:
                 self.ipr.route(
-                    "add",
+                    cmd,
                     dst=str(r.dest),
                     type=r.rt_type,
                     proto=r.proto,
