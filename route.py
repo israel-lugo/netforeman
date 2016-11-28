@@ -138,6 +138,17 @@ class Route:
             return netaddr.IPNetwork("::/0")
 
 
+class FIBError(Exception):
+    """Error from a FIB interface."""
+
+    def __init__(self, msg, orig=None):
+        self.msg = msg
+        self.orig=orig
+
+    def __str__(self):
+        return self.msg
+
+
 class FIBInterface:
     """Interface to an underlying FIB.
 
@@ -153,3 +164,11 @@ class FIBInterface:
         """Get routes from the underlying FIB."""
         raise NotImplementedError()
 
+    def add_route(self, r):
+        """Add a route to the FIB.
+
+        Raises route.FIBError in case of error (such as no permissions,
+        route already exists, and so on).
+
+        """
+        raise NotImplementedError()

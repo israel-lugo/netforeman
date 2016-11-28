@@ -39,6 +39,37 @@ class LinuxFIBInterface(route.FIBInterface):
 
         return [self._route_from_rtnl_msg(msg) for msg in nl_routes]
 
+    def add_route(self, r):
+        """Add a route to the FIB.
+
+        Raises route.FIBError in case of error (such as no permissions,
+        route already exists, and so on).
+
+        """
+        try:
+            if not r.multipath:
+                self.ipr.route(
+                    "add",
+                    dst=str(r.dest),
+                    type=r.rt_type,
+                    proto=r.proto,
+                    gateway=str(r.nexthop[0].gw),
+                    oif=self._get_ifidx(r.nexthop[0].ifname)
+                )
+            else:
+                self.ipr.route(
+                    "add",
+                    dst=str(r.dest),
+                    type=r.rt_type,
+                    proto=r.proto,
+                    multipath=[
+                        {'gateway': str(nh.gw), 'oif': self._get_ifidx(nh.ifname)}
+                        for nh in r.nexthops
+                    ]
+                )
+        except pyroute2.netlink.exceptions.NetlinkError as e:
+            raise route.FIBError(e.args[1], e)
+
     def _route_from_rtnl_msg(self, rtnl_msg):
         """Create a Route from an rtnetlink message."""
 
@@ -108,6 +139,17 @@ class LinuxFIBInterface(route.FIBInterface):
                 return None
 
         return iface.get_attr('IFLA_IFNAME')
+
+    def _get_ifidx(self, ifname):
+        """Get the index of an interface.
+
+        Returns the index of the interface with the specified name, or None
+        if none exists.
+
+        """
+        iflist = self.ipr.link_lookup(ifname=ifname)
+
+        return iflist[0] if iflist else None
 
     @staticmethod
     def _guess_nh_type(gw):
