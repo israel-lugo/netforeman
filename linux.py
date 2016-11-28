@@ -31,10 +31,13 @@ import route
 
 
 class LinuxFIBInterface(route.FIBInterface):
+    """Interface to an underlying Linux FIB."""
+
     def __init__(self):
         self.ipr = pyroute2.IPRoute()
 
     def get_routes(self, family):
+        """Get routes from the underlying FIB."""
         nl_routes = self.ipr.get_routes(family=family, table=254)
 
         return [self._route_from_rtnl_msg(msg) for msg in nl_routes]
