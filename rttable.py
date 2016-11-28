@@ -143,3 +143,19 @@ class RoutingTable:
         """
         return self.tcam.longest_match(dest)
 
+
+if __name__ == '__main__':
+    import linux
+    import socket
+
+    fib = linux.LinuxRoutingInterface()
+
+    rt4 = RoutingTable(fib.get_routes(socket.AF_INET))
+    rt6 = RoutingTable(fib.get_routes(socket.AF_INET6))
+
+    for r in rt4:
+        print(r)
+
+    for r in rt6:
+        print(r)
+

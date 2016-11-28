@@ -114,7 +114,6 @@ class Route:
 
         return s
 
-
     @staticmethod
     def validate_family(family):
         """Validate that family is a proper value.
@@ -128,4 +127,13 @@ class Route:
 
         return family
 
+    @classmethod
+    def default_network(cls, family):
+        """Return the default network for the specified family."""
+        family = cls.validate_family(family)
+
+        if family == socket.AF_INET:
+            return netaddr.IPNetwork("0.0.0.0/0")
+        else:
+            return netaddr.IPNetwork("::/0")
 

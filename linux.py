@@ -28,142 +28,114 @@ import netaddr
 import pyroute2
 
 import route
-import rttable
 
 
-def nexthop_from_mpath_msg(ipr, msg):
-    """Create a NextHop from an rtnetlink multipath message."""
+class LinuxRoutingInterface:
+    def __init__(self):
+        self.ipr = pyroute2.IPRoute()
 
-    gw_str = msg.get_attr('RTA_GATEWAY')
-    gw = netaddr.IPAddress(gw_str) if gw_str is not None else None
+    def get_routes(self, family):
+        nl_routes = self.ipr.get_routes(family=family, table=254)
 
-    oif_idx = msg['oif']
-    ifname = get_ifname(ipr, oif_idx)
+        return [self._route_from_rtnl_msg(msg) for msg in nl_routes]
 
-    nh_type = _guess_nh_type(gw)
+    def _route_from_rtnl_msg(self, rtnl_msg):
+        """Create a Route from an rtnetlink message."""
 
-    return route.NextHop(gw, ifname, nh_type)
-
-def nexthop_from_rtmsg(ipr, msg):
-    """Create a NextHop from an rtnetlink message."""
-
-    gw_str = msg.get_attr('RTA_GATEWAY')
-    gw = netaddr.IPAddress(gw_str) if gw_str is not None else None
-
-    oif_idx = msg.get_attr('RTA_OIF')
-    ifname = get_ifname(ipr, oif_idx)
-
-    nh_type = _guess_nh_type(gw)
-
-    return route.NextHop(gw, ifname, nh_type)
-
-def _guess_nh_type(gw):
-    """Guess the nexthop type based on the gateway."""
-
-    # XXX: This is a rather crude guess
-    if gw is None:
-        nh_type = route.NHType.connected
-    else:
-        nh_type = route.NHType.via
-
-    return nh_type
-
-
-def route_from_rtnl_msg(ipr, rtnl_msg):
-    """Create a Route from an rtnetlink message."""
-
-    family = route.Route.validate_family(rtnl_msg['family'])
-
-    destlen = rtnl_msg['dst_len']
-    if destlen == 0:
-        dest = _default_network(family)
-    else:
-        dest_str = "{:s}/{:d}".format(rtnl_msg.get_attr('RTA_DST'), destlen)
-        dest = netaddr.IPNetwork(dest_str)
-
-    # Linux only sets RTA_MULTIPATH on IPv4. IPv6 multipath routes are seen
-    # as separate, unrelated routes, which happen to have the same dst.
-    nh_msgs = rtnl_msg.get_attr('RTA_MULTIPATH')
-    if nh_msgs is not None:
-        nexthops = [nexthop_from_mpath_msg(ipr, msg) for msg in nh_msgs]
-    else:
-        nexthops = [nexthop_from_rtmsg(ipr, rtnl_msg)]
-
-    # XXX: This seems to not exist on IPv4, will be None when family == AF_INET
-    metric = rtnl_msg.get_attr('RTA_PRIORITY')
-
-    proto = _get_proto_name(rtnl_msg['proto'])
-
-    rt_type = _get_rt_typename(rtnl_msg['type'])
-
-    return route.Route(family, dest, destlen, nexthops, metric, proto, rt_type)
-
-def _default_network(family):
-    """Return the default network for the specified family."""
-
-    if family == socket.AF_INET:
-        return netaddr.IPNetwork("0.0.0.0/0")
-    else:
-        return netaddr.IPNetwork("::/0")
-
-def _get_rt_typename(typenum):
-    """Get the route type name from its number.
-
-    Raises KeyError if the route type is unknown.
-
-    """
-    return pyroute2.netlink.rtnl.rt_type[typenum]
-
-def _get_proto_name(protonum):
-    """Get the source protocol name from its number.
-
-    Raises KeyError if the protocol is unknown.
-
-    """
-    return pyroute2.netlink.rtnl.rt_proto[protonum]
-
-def get_ifname(ipr, index):
-    return ipr.link("get", index=index)[0].get_attr('IFLA_IFNAME')
-
-
-def print_nl_routes(ipr, rt_table):
-    for rt in rt_table:
-        prefix_len = rt['dst_len']
-        if prefix_len == 0:
-            dst = 'default'
+        family = rtnl_msg['family']
+        destlen = rtnl_msg['dst_len']
+        if destlen == 0:
+            dest = route.Route.default_network(family)
         else:
-            dst = "{:s}/{:d}".format(rt.get_attr('RTA_DST'), prefix_len)
+            dest_str = "{:s}/{:d}".format(rtnl_msg.get_attr('RTA_DST'), destlen)
+            dest = netaddr.IPNetwork(dest_str)
 
-        gw = rt.get_attr('RTA_GATEWAY')
-        ifname = get_ifname(ipr, rt.get_attr('RTA_OIF'))
-
-        if gw is not None:
-            via = " via {:s}".format(gw)
+        # Linux only sets RTA_MULTIPATH on IPv4. IPv6 multipath routes are seen
+        # as separate, unrelated routes, which happen to have the same dst.
+        nh_msgs = rtnl_msg.get_attr('RTA_MULTIPATH')
+        if nh_msgs is not None:
+            nexthops = [self._nexthop_from_mpath_msg(msg) for msg in nh_msgs]
         else:
-            via = ""
+            nexthops = [self._nexthop_from_rtmsg(rtnl_msg)]
 
-        print("{:s}{:s} dev {:s}".format(dst, via, ifname))
+        # XXX: This seems to not exist on IPv4, will be None when family == AF_INET
+        metric = rtnl_msg.get_attr('RTA_PRIORITY')
 
+        proto = self._get_proto_name(rtnl_msg['proto'])
 
-def get_netlink_routes(ipr, family):
-    return ipr.get_routes(family=family, table=254)
+        rt_type = self._get_rt_typename(rtnl_msg['type'])
 
+        return route.Route(family, dest, destlen, nexthops, metric, proto, rt_type)
 
-def get_routes(ipr, family):
-    nl_routes = get_netlink_routes(ipr, family)
+    def _nexthop_from_mpath_msg(self, msg):
+        """Create a NextHop from an rtnetlink multipath message."""
 
-    return [route_from_rtnl_msg(ipr, msg) for msg in nl_routes]
+        gw_str = msg.get_attr('RTA_GATEWAY')
+        gw = netaddr.IPAddress(gw_str) if gw_str is not None else None
 
+        oif_idx = msg['oif']
+        ifname = self._get_ifname(oif_idx)
 
-if __name__ == '__main__':
-    ipr = pyroute2.IPRoute()
+        nh_type = self._guess_nh_type(gw)
 
-    rt4 = rttable.RoutingTable(get_routes(ipr, socket.AF_INET))
-    rt6 = rttable.RoutingTable(get_routes(ipr, socket.AF_INET6))
+        return route.NextHop(gw, ifname, nh_type)
 
-    for r in rt4:
-        print(r)
+    def _nexthop_from_rtmsg(self, msg):
+        """Create a NextHop from an rtnetlink message."""
 
-    for r in rt6:
-        print(r)
+        gw_str = msg.get_attr('RTA_GATEWAY')
+        gw = netaddr.IPAddress(gw_str) if gw_str is not None else None
+
+        oif_idx = msg.get_attr('RTA_OIF')
+        ifname = self._get_ifname(oif_idx)
+
+        nh_type = self._guess_nh_type(gw)
+
+        return route.NextHop(gw, ifname, nh_type)
+
+    def _get_ifname(self, index):
+        """Get the name of an interface.
+
+        Returns the name of the interface with the specified index, or None
+        if none exists.
+
+        """
+        try:
+            iface = self.ipr.link("get", index=index)[0]
+        except pyroute2.netlink.exceptions.NetlinkError as e:
+            import errno
+            if e.code == errno.ENODEV:
+                return None
+
+        return iface.get_attr('IFLA_IFNAME')
+
+    @staticmethod
+    def _guess_nh_type(gw):
+        """Guess the nexthop type based on the gateway."""
+
+        # XXX: This is a rather crude guess
+        if gw is None:
+            nh_type = route.NHType.connected
+        else:
+            nh_type = route.NHType.via
+
+        return nh_type
+
+    @staticmethod
+    def _get_rt_typename(typenum):
+        """Get the route type name from its number.
+
+        Raises KeyError if the route type is unknown.
+
+        """
+        return pyroute2.netlink.rtnl.rt_type[typenum]
+
+    @staticmethod
+    def _get_proto_name(protonum):
+        """Get the source protocol name from its number.
+
+        Raises KeyError if the protocol is unknown.
+
+        """
+        return pyroute2.netlink.rtnl.rt_proto[protonum]
 
