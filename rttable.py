@@ -148,7 +148,7 @@ if __name__ == '__main__':
     import linux
     import socket
 
-    fib = linux.LinuxRoutingInterface()
+    fib = linux.LinuxFIBInterface()
 
     rt4 = RoutingTable(fib.get_routes(socket.AF_INET))
     rt6 = RoutingTable(fib.get_routes(socket.AF_INET6))

@@ -137,3 +137,19 @@ class Route:
         else:
             return netaddr.IPNetwork("::/0")
 
+
+class FIBInterface:
+    """Interface to an underlying FIB.
+
+    This is a base class for specific FIB interfaces. It must be
+    subclassed, and its methods must be implemented.
+
+    """
+
+    def __init__(self):
+        pass
+
+    def get_routes(self, family):
+        """Get routes from the underlying FIB."""
+        raise NotImplementedError()
+

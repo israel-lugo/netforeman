@@ -30,7 +30,7 @@ import pyroute2
 import route
 
 
-class LinuxRoutingInterface:
+class LinuxFIBInterface(route.FIBInterface):
     def __init__(self):
         self.ipr = pyroute2.IPRoute()
 
