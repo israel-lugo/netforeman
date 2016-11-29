@@ -74,6 +74,12 @@ class Route:
         """Initialize a Route instance."""
 
         self.family = self.validate_family(family)
+
+        prefixlen = self.prefixlen_from_dest(dest)
+        if prefixlen != destlen:
+            raise ValueError("destlen ({:d}) doesn't match dest's prefix ({:d})".format(
+                destlen, prefixlen))
+
         self.dest = dest
         self.destlen = destlen
         self.nexthops = nexthops
@@ -126,6 +132,24 @@ class Route:
             raise ValueError("invalid family {:d}".format(family))
 
         return family
+
+    @staticmethod
+    def prefixlen_from_dest(dest):
+        """Get the prefix from an IPAddress or an IPNetwork.
+
+        If dest is an IPNetwork, returns its prefixlen. If dest is an
+        IPAddress, returns either 32 or 128, depending on whether it's IPv4
+        or IPv6.
+
+        """
+        # assume dest is an IPNetwork and get its prefix
+        prefixlen = getattr(dest, 'prefixlen', None)
+
+        if prefixlen is None:
+            # dest must be an IPAddress
+            prefixlen = 32 if dest.version == 4 else 128
+
+        return prefixlen
 
     @classmethod
     def default_network(cls, family):
