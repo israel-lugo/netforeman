@@ -162,6 +162,37 @@ class Route:
             return netaddr.IPNetwork("::/0")
 
 
+class RouteMatch(Route):
+    """Route subclass that accepts incomplete parameters, for matching."""
+
+    def __init__(self, family, dest, destlen=None, nexthops=None, metric=None, proto=None, rt_type=None):
+        """Initialize a RouteMatch instance."""
+
+        if destlen is None:
+            destlen = self.prefixlen_from_dest(dest)
+
+        if nexthops is None:
+            nexthops = []
+
+        super().__init__(family, dest, destlen, nexthops, metric, proto, rt_type)
+
+    def __str__(self):
+        """Convert to a string."""
+
+        s = str(self.dest) if not self.is_default else "default"
+
+        if self.multipath:
+            s = "{:s} proto {:s}".format(s, str(self.proto))
+            nh_str = ''.join([ "\n\tnexthop " + str(nh) for nh in self.nexthops ])
+            s += nh_str
+        else:
+            nh = self.nexthops[0] if self.nexthops else None
+            s = "{:s} {:s} proto {:s}".format(s, str(nh), str(self.proto))
+
+        return s
+
+
+
 class FIBError(Exception):
     """Error from a FIB interface."""
 

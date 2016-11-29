@@ -91,31 +91,34 @@ class LinuxFIBInterface(route.FIBInterface):
         if cmd not in ("add", "del", "change", "replace"):
             raise ValueError("invalid cmd '{:s}'".format(cmd))
 
+        kwargs = self._route_to_dict(r)
         try:
-            if not r.multipath:
-                nh = r.nexthops[0]
-
-                self.ipr.route(
-                    cmd,
-                    dst=str(r.dest),
-                    type=r.rt_type,
-                    proto=r.proto,
-                    gateway=str(nh.gw),
-                    oif=self._get_ifidx(nh.ifname)
-                )
-            else:
-                self.ipr.route(
-                    cmd,
-                    dst=str(r.dest),
-                    type=r.rt_type,
-                    proto=r.proto,
-                    multipath=[
-                        {'gateway': str(nh.gw), 'oif': self._get_ifidx(nh.ifname)}
-                        for nh in r.nexthops
-                    ]
-                )
+            self.ipr.route(cmd, **kwargs)
         except pyroute2.netlink.exceptions.NetlinkError as e:
             raise route.FIBError(e.args[1], e)
+
+    def _route_to_dict(self, r):
+        """Convert a Route to a dict of its non-None attributes."""
+        d = {}
+
+        if r.dest is not None: d['dst'] = str(r.dest)
+        if r.rt_type is not None: d['type'] = r.rt_type
+        if r.proto is not None: d['proto'] = r.proto
+        if r.multipath:
+            d['multipath'] = [self._nexthop_to_dict(nh) for nh in r.nexthops]
+        elif r.nexthops:
+            d.update(self._nexthop_to_dict(r.nexthops[0]))
+
+        return d
+
+    def _nexthop_to_dict(self, nh):
+        """Convert a NextHop to a dict of its non-None attributes."""
+        d = {}
+
+        if nh.gw is not None: d['gw'] = str(nh.gw)
+        if nh.ifname is not None: d['oif'] = self._get_ifidx(nh.ifname)
+
+        return d
 
     def _route_from_rtnl_msg(self, rtnl_msg):
         """Create a Route from an rtnetlink message."""
