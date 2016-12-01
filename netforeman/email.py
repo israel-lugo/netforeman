@@ -51,14 +51,15 @@ class _Email(email.mime.text.MIMEText):
 class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
     """Email module API."""
 
-    def __init__(self, from_, to, server, port, login=None):
+    def __init__(self, from_, to, server, port, username=None, password=None):
         """Initialize the email module."""
 
         self.from_ = from_
         self.to = to
         self.server = server
         self.port = port
-        self.login = login
+        self.username = username
+        self.password = password
 
     @property
     def commands(self):
