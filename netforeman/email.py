@@ -51,6 +51,11 @@ class _Email(email.mime.text.MIMEText):
 class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
     """Email module API."""
 
+    _module_args = {
+        'from_address': True, 'to_address': True, 'server': True,
+        'port': True, 'username': False, 'password': False
+    }
+
     def __init__(self, from_address, to_address, server, port, username=None, password=None):
         """Initialize the email module."""
 
@@ -66,6 +71,16 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
         """Get the email module's commands."""
 
         return {'sendmail': self.sendmail}
+
+    @classmethod
+    def get_module_args(cls):
+        """Get the names of the module arguments.
+
+        This is a dictionary of {name: required}, where name is the name of
+        the argument, and required is True if the argument must be present.
+
+        """
+        return cls._module_args
 
     def sendmail(self, subject, text=''):
         """Send an email message."""

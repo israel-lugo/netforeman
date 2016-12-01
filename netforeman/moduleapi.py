@@ -40,4 +40,20 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         """Get the module's commands."""
         return {}
 
+    @classmethod
+    @abc.abstractmethod
+    def get_module_args(cls):
+        """Get the names of the module arguments.
+
+        This is a dictionary of {name: required}, where name is the name of
+        the argument, and required is True if the argument must be present.
+
+        """
+        return {}
+    # XXX: It would've been nice to have module_args be a class property,
+    # but @property doesn't work on classmethods. We could get around
+    # that by defining our own metaclass, as a subclass of abc.ABCMeta, and
+    # defining the property there. Since it's a metaclass, the property
+    # affects the class, so no need for @classmethod. This is too complex,
+    # though, for little gain.
 
