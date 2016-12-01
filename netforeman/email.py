@@ -33,12 +33,12 @@ import netforeman.moduleapi
 
 
 class _Email(email.mime.text.MIMEText):
-    def __init__(self, text, from_, to, subject, date=None):
+    def __init__(self, text, from_address, to_address, subject, date=None):
 
         super().__init__(text, _charset='utf-8')
 
-        self['From'] = from_
-        self['To'] = to
+        self['From'] = from_address
+        self['To'] = to_address
         self['Subject'] = subject
         if date is None:
             self['Date'] = email.utils.formatdate()
@@ -51,11 +51,11 @@ class _Email(email.mime.text.MIMEText):
 class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
     """Email module API."""
 
-    def __init__(self, from_, to, server, port, username=None, password=None):
+    def __init__(self, from_address, to_address, server, port, username=None, password=None):
         """Initialize the email module."""
 
-        self.from_ = from_
-        self.to = to
+        self.from_address = from_address
+        self.to_address = to_address
         self.server = server
         self.port = port
         self.username = username
@@ -70,7 +70,7 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
     def sendmail(self, subject, text=''):
         """Send an email message."""
 
-        msg = _Email(text, self.from_, self.to, subject)
+        msg = _Email(text, self.from_address, self.to_address, subject)
 
         sender = smtplib.SMTP(self.server, self.port)
         sender.send_message(msg)
