@@ -29,7 +29,10 @@ import email.utils
 
 from netforeman import version
 
-class Email(email.mime.text.MIMEText):
+import netforeman.moduleapi
+
+
+class _Email(email.mime.text.MIMEText):
     def __init__(self, text, from_, to, subject, date=None):
 
         super().__init__(text, _charset='utf-8')
@@ -45,7 +48,33 @@ class Email(email.mime.text.MIMEText):
         self['User-Agent'] = 'NetForeman {:s}'.format(version.__version__)
 
 
-def send(msg, server, port=25, username=None, password=None):
-    sender = smtplib.SMTP(server, port)
-    sender.send_message(msg)
-    sender.quit()
+class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
+    """Email module API."""
+
+    def __init__(self, from_, to, server, port, login=None):
+        """Initialize the email module."""
+
+        self.from_ = from_
+        self.to = to
+        self.server = server
+        self.port = port
+        self.login = login
+
+    @property
+    def commands(self):
+        """Get the email module's commands."""
+
+        return {'sendmail': self.sendmail}
+
+    def sendmail(self, subject, text=''):
+        """Send an email message."""
+
+        msg = _Email(text, self.from_, self.to, subject)
+
+        sender = smtplib.SMTP(self.server, self.port)
+        sender.send_message(msg)
+        sender.quit()
+
+
+API = EmailModuleAPI
+
