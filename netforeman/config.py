@@ -36,40 +36,67 @@ class ParseError(Exception):
         return self.message
 
 
-def parse(filename):
-    """Parse a configuration file.
+class Configurator:
 
-    Raises ParseError in case of error.
+    def __init__(self, filename):
+        """Initializes a Configurator by parsing a configuration file.
 
-    """
-    try:
-        conf = pyhocon.ConfigFactory.parse_file(filename)
-    except pyhocon.exceptions.ConfigException as e:
-        raise ParseError(str(e))
+        Raises ParseError in case of error.
 
-    return conf
+        """
+        self.filename = filename
+
+        try:
+            self.conf = pyhocon.ConfigFactory.parse_file(filename)
+        except pyhocon.exceptions.ConfigException as e:
+            raise ParseError(str(e))
+
+    def load_modules(self):
+        """Load configured modules."""
+        try:
+            modules_to_load = self.conf['modules']
+        except pyhocon.exceptions.ConfigMissingException as e:
+            raise ParseError("missing mandatory section 'modules'")
+
+        # load the modules
+        self.modules = [
+                importlib.import_module("{:s}.{:s}".format(__package__, module))
+            for module in modules_to_load
+        ]
+
+        # create the API object for every loaded module
+        self.module_apis = [
+            m.API(**self.get_module_args(m))
+            for m in self.modules
+        ]
 
 
-def load_modules(conf):
-    """Load configured modules."""
+    def get_module_args(self, module):
+        """Get the configured arguments for a certain module.
 
-    try:
-        modules_to_load = conf['modules']
-    except pyhocon.exceptions.ConfigMissingException as e:
-        raise ParseError("missing mandatory section 'modules'")
+        Returns a config tree of arguments. Raises ParseError if any
+        required arguments are missing.
 
-    modules = [
-            importlib.import_module("{:s}.{:s}".format(__package__, module))
-        for module in modules_to_load
-    ]
+        """
+        args = module.API.get_module_args()
 
-    return modules
+        # if the module has no arguments, there's nothing to check
+        if not args:
+            return {}
 
+        # use the module's relative name
+        module_name = module.__name__.split('.')[-1]
 
-# TODO: Create some glue for all this.
-#   1. Parse configuration file
-#   2. Load modules
-#   3. Load arguments for the modules, from dictionaries in the conf
-#   4. For each loaded module m, create m.API(m_args)
-#   5. ???
+        if module_name not in self.conf:
+            raise ParseError("missing required section '{:s}'".format(module_name))
+
+        module_conf = self.conf.get_config(module_name)
+
+        # make sure everything's there
+        for name, required in args.items():
+            if required and name not in module_conf:
+                raise ParseError("missing required argument '{:s}.{:s}'".format(module_name, name))
+
+        return module_conf
+
 
