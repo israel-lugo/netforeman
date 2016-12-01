@@ -27,7 +27,7 @@ import socket
 import netaddr
 import pyroute2
 
-import route
+from netforeman import route
 
 
 class LinuxFIBInterface(route.FIBInterface):
