@@ -23,14 +23,53 @@
 
 """Configuration parser."""
 
+import importlib
+
 import pyhocon
 
-# TODO: Finish implementing this
 
-def print_syntax_error(e):
-    """Print location of a parse error in the source.
-    
-    Receives a pyparsing.ParseSyntaxException raised from the parse error.
+class ParseError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+def parse(filename):
+    """Parse a configuration file.
+
+    Raises ParseError in case of error.
 
     """
-    print("{:s}\n{:>{width}}".format(e.line, "^", width=e.col))
+    try:
+        conf = pyhocon.ConfigFactory.parse_file(filename)
+    except pyhocon.exceptions.ConfigException as e:
+        raise ParseError(str(e))
+
+    return conf
+
+
+def load_modules(conf):
+    """Load configured modules."""
+
+    try:
+        modules_to_load = conf['modules']
+    except pyhocon.exceptions.ConfigMissingException as e:
+        raise ParseError("missing mandatory section 'modules'")
+
+    modules = [
+            importlib.import_module("{:s}.{:s}".format(__package__, module))
+        for module in modules_to_load
+    ]
+
+    return modules
+
+
+# TODO: Create some glue for all this.
+#   1. Parse configuration file
+#   2. Load modules
+#   3. Load arguments for the modules, from dictionaries in the conf
+#   4. For each loaded module m, create m.API(m_args)
+#   5. ???
+
