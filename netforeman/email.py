@@ -51,20 +51,19 @@ class _Email(email.mime.text.MIMEText):
 class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
     """Email module API."""
 
-    _module_args = {
-        'from_address': True, 'to_address': True, 'server': True,
-        'port': True, 'username': False, 'password': False
-    }
+    def __init__(self, conf):
+        """Initialize the email module.
 
-    def __init__(self, from_address, to_address, server, port, username=None, password=None):
-        """Initialize the email module."""
+        Receives a pyhocon.config_tree.ConfigTree object, containing the
+        module's config tree.
 
-        self.from_address = from_address
-        self.to_address = to_address
-        self.server = server
-        self.port = port
-        self.username = username
-        self.password = password
+        """
+        self.from_address = self._get_conf(conf, 'from_address')
+        self.to_address = self._get_conf(conf, 'to_address')
+        self.server = self._get_conf(conf, 'server')
+        self.port = self._get_conf(conf, 'port')
+        self.username = self._get_conf(conf, 'username', False)
+        self.password = self._get_conf(conf, 'password', False)
 
     @property
     def commands(self):

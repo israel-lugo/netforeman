@@ -30,8 +30,13 @@ class ModuleAPI(metaclass=abc.ABCMeta):
     """Base class for the API of all NetForeman modules."""
 
     @abc.abstractmethod
-    def __init__(self, **kwargs):
-        """Initialize the module API."""
+    def __init__(self, conf):
+        """Initialize the module API.
+
+        Receives a pyhocon.config_tree.ConfigTree object, containing the
+        module's config tree.
+
+        """
         pass
 
     @property
@@ -40,20 +45,17 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         """Get the module's commands."""
         return {}
 
-    @classmethod
-    @abc.abstractmethod
-    def get_module_args(cls):
-        """Get the names of the module arguments.
+    @staticmethod
+    def _get_conf(conf, name, required=True):
+        """Get a value from a pyhocon.config_tree.ConfigTree.
 
-        This is a dictionary of {name: required}, where name is the name of
-        the argument, and required is True if the argument must be present.
+        If the value is missing and required is True, raises a KeyError
+        exception. If the value is missing and required is False, returns
+        None.
 
         """
-        return {}
-    # XXX: It would've been nice to have module_args be a class property,
-    # but @property doesn't work on classmethods. We could get around
-    # that by defining our own metaclass, as a subclass of abc.ABCMeta, and
-    # defining the property there. Since it's a metaclass, the property
-    # affects the class, so no need for @classmethod. This is too complex,
-    # though, for little gain.
+        value = conf.get(name, None)
+        if value is None and required:
+            raise KeyError("missing required argument '{:s}'".format(name))
 
+        return value

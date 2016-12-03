@@ -66,24 +66,17 @@ class Configurator:
 
         # create the API object for every loaded module
         self.module_apis = [
-            m.API(**self.get_module_args(m))
+            m.API(self.get_module_conf(m))
             for m in self.modules
         ]
 
+    def get_module_conf(self, module):
+        """Get the a module's config tree.
 
-    def get_module_args(self, module):
-        """Get the configured arguments for a certain module.
-
-        Returns a config tree of arguments. Raises ParseError if any
-        required arguments are missing.
+        Returns a config tree of arguments. Raises ParseError if the tree
+        is missing.
 
         """
-        args = module.API.get_module_args()
-
-        # if the module has no arguments, there's nothing to check
-        if not args:
-            return {}
-
         # use the module's relative name
         module_name = module.__name__.split('.')[-1]
 
@@ -92,11 +85,5 @@ class Configurator:
 
         module_conf = self.conf.get_config(module_name)
 
-        # make sure everything's there
-        for name, required in args.items():
-            if required and name not in module_conf:
-                raise ParseError("missing required argument '{:s}.{:s}'".format(module_name, name))
-
         return module_conf
-
 
