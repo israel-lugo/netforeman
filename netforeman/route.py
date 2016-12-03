@@ -63,6 +63,20 @@ class NextHop:
 
         return s
 
+    def __eq__(self, other):
+        """self == other
+
+        Returns True if self is equal to other in all non-None fields.
+
+        """
+        return ((self.gw is None or self.gw == other.gw)
+                and (self.ifname is None or self.ifname == other.ifname)
+                and (self.nh_type is None or self.nh_type == other.nh_type))
+
+    def __ne__(self, other):
+        """self != other"""
+        return not self.__eq__(other)
+
 
 class Route:
     """Route to a certain destination.
@@ -97,6 +111,20 @@ class Route:
 
         self.is_default = (destlen == 0)
         self.multipath = (len(nexthops) > 1)
+
+    def __eq__(self, other):
+        """self == other"""
+        return (self.family == other.family
+                and self.dest == other.dest
+                and self.destlen == other.destlen
+                and self.nexthops == other.nexthops
+                and self.metric == other.metric
+                and self.proto == other.proto
+                and self.rt_type == other.rt_type)
+
+    def __ne__(self, other):
+        """self != other"""
+        return not self.__eq__(other)
 
     def add_nexthops(self, nexthops):
         """Add nexthops from a list.
@@ -168,16 +196,55 @@ class Route:
 class RouteMatch(Route):
     """Route subclass that accepts incomplete parameters, for matching."""
 
-    def __init__(self, family, dest, destlen=None, nexthops=None, metric=None, proto=None, rt_type=None):
+    def __init__(self, family, dest=None, destlen=None, nexthops=None, metric=None, proto=None, rt_type=None):
         """Initialize a RouteMatch instance."""
 
-        if destlen is None:
-            destlen = self.prefixlen_from_dest(dest)
+        self.family = self.validate_family(family)
+
+        # these checks only make sense if dest was provided
+        if dest is not None:
+            if (self.family, dest.version) not in ((socket.AF_INET, 4), (socket.AF_INET6, 6)):
+                raise ValueError("family doesn't match dest's IP version")
+
+            prefixlen = self.prefixlen_from_dest(dest)
+
+            if destlen is None:
+                destlen = prefixlen
+            elif prefixlen != destlen:
+                raise ValueError("destlen ({:d}) doesn't match dest's prefix ({:d})".format(
+                    destlen, prefixlen))
+
+            if self.destlen == 0:
+                if ((family == socket.AF_INET and dest != netaddr.IPNetwork("0.0.0.0/0"))
+                        or (family == socket.AF_INET6 and dest != netaddr.IPNetwork("::/0"))):
+                    raise ValueError("destlen == 0 and dest isn't a default route")
 
         if nexthops is None:
             nexthops = []
 
-        super().__init__(family, dest, destlen, nexthops, metric, proto, rt_type)
+        self.dest = dest
+        self.destlen = destlen
+        self.nexthops = nexthops
+        self.metric = metric
+        self.proto = proto
+        self.rt_type = rt_type
+
+        self.is_default = (destlen == 0)
+        self.multipath = (len(nexthops) > 1)
+
+    def __eq__(self, other):
+        """self == other
+
+        Returns True if self is equal to other in all non-None fields.
+
+        """
+        return (self.family == other.family
+                and (self.dest is None or self.dest == other.dest)
+                and (self.dest is None or self.destlen == other.destlen)
+                and (not self.nexthops or self.nexthops == other.nexthops)
+                and (self.metric is None or self.metric == other.metric)
+                and (self.proto is None or self.proto == other.proto)
+                and (self.rt_type is None or self.rt_type == other.rt_type))
 
     def __str__(self):
         """Convert to a string."""
