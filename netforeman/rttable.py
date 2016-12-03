@@ -191,9 +191,9 @@ API = RoutingTableModuleAPI
 
 
 if __name__ == '__main__':
-    import linux
+    from netforeman import linuxfib
 
-    fib = linux.LinuxFIBInterface()
+    fib = linuxfib.LinuxFIBInterface()
 
     rt4 = RoutingTable(fib.get_routes(socket.AF_INET))
     rt6 = RoutingTable(fib.get_routes(socket.AF_INET6))
