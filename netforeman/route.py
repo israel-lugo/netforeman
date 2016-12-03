@@ -214,7 +214,7 @@ class RouteMatch(Route):
                 raise ValueError("destlen ({:d}) doesn't match dest's prefix ({:d})".format(
                     destlen, prefixlen))
 
-            if self.destlen == 0:
+            if destlen == 0:
                 if ((family == socket.AF_INET and dest != netaddr.IPNetwork("0.0.0.0/0"))
                         or (family == socket.AF_INET6 and dest != netaddr.IPNetwork("::/0"))):
                     raise ValueError("destlen == 0 and dest isn't a default route")
