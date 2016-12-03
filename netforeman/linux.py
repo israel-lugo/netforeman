@@ -28,9 +28,10 @@ import netaddr
 import pyroute2
 
 from netforeman import route
+from netforeman import fibinterface
 
 
-class LinuxFIBInterface(route.FIBInterface):
+class LinuxFIBInterface(fibinterface.FIBInterface):
     """Interface to an underlying Linux FIB."""
 
     def __init__(self):
@@ -45,8 +46,8 @@ class LinuxFIBInterface(route.FIBInterface):
     def add_route(self, r):
         """Add a route to the FIB.
 
-        Raises route.FIBError in case of error (such as no permissions,
-        route already exists, and so on).
+        Raises fibinterface.FIBError in case of error (such as no
+        permissions, route already exists, and so on).
 
         """
         self._route_cmd("add", r)
@@ -54,8 +55,8 @@ class LinuxFIBInterface(route.FIBInterface):
     def change_route(self, r):
         """Change an existing route in the FIB.
 
-        Raises route.FIBError in case of error (such as no permissions,
-        route doesn't exist, and so on).
+        Raises fibinterface.FIBError in case of error (such as no
+        permissions, route doesn't exist, and so on).
 
         """
         self._route_cmd("change", r)
@@ -63,8 +64,8 @@ class LinuxFIBInterface(route.FIBInterface):
     def delete_route(self, r):
         """Delete an existing route from the FIB.
 
-        Raises route.FIBError in case of error (such as no permissions,
-        route doesn't exist, and so on).
+        Raises fibinterface.FIBError in case of error (such as no
+        permissions, route doesn't exist, and so on).
 
         """
         self._route_cmd("del", r)
@@ -73,8 +74,8 @@ class LinuxFIBInterface(route.FIBInterface):
         """Replace a route in the FIB.
 
         If the route exists, it is changed. If it doesn't exist, a new one
-        is created. Raises route.FIBError in case of error (such as no
-        permissions, and so on).
+        is created. Raises fibinterface.FIBError in case of error (such as
+        no permissions, and so on).
 
         """
         self._route_cmd("replace", r)
@@ -84,8 +85,8 @@ class LinuxFIBInterface(route.FIBInterface):
 
         cmd must be one of "add", "del", "change" or "replace".
 
-        Raises route.FIBError in case of error (such as no permissions,
-        route already exists, and so on).
+        Raises fibinterface.FIBError in case of error (such as no
+        permissions, route already exists, and so on).
 
         """
         if cmd not in ("add", "del", "change", "replace"):
@@ -95,7 +96,7 @@ class LinuxFIBInterface(route.FIBInterface):
         try:
             self.ipr.route(cmd, **kwargs)
         except pyroute2.netlink.exceptions.NetlinkError as e:
-            raise route.FIBError(e.args[1], e)
+            raise fibinterface.FIBError(e.args[1], e)
 
     def _route_to_dict(self, r):
         """Convert a Route to a dict of its non-None attributes."""
@@ -230,4 +231,7 @@ class LinuxFIBInterface(route.FIBInterface):
 
         """
         return pyroute2.netlink.rtnl.rt_proto[protonum]
+
+
+FIBInterface = LinuxFIBInterface
 
