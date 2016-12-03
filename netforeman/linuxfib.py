@@ -169,7 +169,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         gw = netaddr.IPAddress(gw_str) if gw_str is not None else None
 
         oif_idx = msg.get_attr('RTA_OIF')
-        ifname = self._get_ifname(oif_idx)
+        ifname = self._get_ifname(oif_idx) if oif_idx is not None else None
 
         nh_type = self._guess_nh_type(gw)
 

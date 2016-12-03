@@ -56,7 +56,10 @@ class NextHop:
     def __str__(self):
         """Convert to string."""
 
-        s = "dev {:s}".format(self.ifname)
+        s = ""
+
+        if self.ifname is not None:
+            s = "dev {:s}".format(self.ifname)
 
         if self.nh_type == NHType.via:
             s = "via {:s} {:s}".format(str(self.gw), s)
