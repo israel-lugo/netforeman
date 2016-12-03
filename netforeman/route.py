@@ -75,6 +75,9 @@ class Route:
 
         self.family = self.validate_family(family)
 
+        if (self.family, dest.version) not in ((socket.AF_INET, 4), (socket.AF_INET6, 6)):
+            raise ValueError("family doesn't match dest's IP version")
+
         prefixlen = self.prefixlen_from_dest(dest)
         if prefixlen != destlen:
             raise ValueError("destlen ({:d}) doesn't match dest's prefix ({:d})".format(
