@@ -60,6 +60,38 @@ class TCAM:
         else:
             self.dests_by_len[destlen] = {r.dest: r}
 
+    def remove(self, r):
+        """Remove a route from the TCAM.
+
+        Raises KeyError if no such route exists.
+
+        """
+        destlen = r.destlen
+        dest = r.dest
+
+        # to avoid having to search every single route
+        if destlen is None:
+            raise ValueError("can only remove from TCAM routes with destlen")
+
+        # to avoid slow linear searches within the routes of a certain len
+        if dest is None:
+            raise ValueError("can only remove from TCAM routes with dest")
+
+        routes_by_dest = self.dests_by_len[destlen]
+
+        existing_r = routes_by_dest[dest]
+
+        # compare r to existing_r and not the other way around, since r may
+        # be a RouteMatch (we want to use r's __eq__())
+        if r != existing_r:
+            raise KeyError("existing route for {:s} differs from supplied one".format(str(dest)))
+
+        del routes_by_dest[dest]
+
+        if not routes_by_dest:
+            # no more routes with that destlen
+            del self.dests_by_len[destlen]
+
     def get_exact(self, dest):
         """Lookup in the TCAM for an exact match for dest.
 
