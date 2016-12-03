@@ -70,6 +70,19 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         """
         self._route_cmd("del", r)
 
+    def get_route_to(self, rm):
+        """Get a route from the FIB matching the specified route.
+
+        Raises fibinterface.FIBError in case of error (such as no
+        permissions, route doesn't exist, and so on).
+
+        """
+        # FIXME: This breaks with a NetlinkError(22, "Invalid argument") if
+        # the route resolves to an unreachable or blackhole.
+        match = self._route_cmd("get", rm)[0]
+
+        return self._route_from_rtnl_msg(match)
+
     def replace_route(self, r):
         """Replace a route in the FIB.
 
@@ -83,20 +96,23 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
     def _route_cmd(self, cmd, r):
         """Run a route command on the FIB.
 
-        cmd must be one of "add", "del", "change" or "replace".
+        cmd must be one of "add", "del", "get", "change" or "replace".
 
-        Raises fibinterface.FIBError in case of error (such as no
-        permissions, route already exists, and so on).
+        Returns the result of the command. Raises fibinterface.FIBError in
+        case of error (such as no permissions, route already exists, and so
+        on).
 
         """
-        if cmd not in ("add", "del", "change", "replace"):
+        if cmd not in ("add", "del", "get", "change", "replace"):
             raise ValueError("invalid cmd '{:s}'".format(cmd))
 
         kwargs = self._route_to_dict(r)
         try:
-            self.ipr.route(cmd, **kwargs)
+            result = self.ipr.route(cmd, **kwargs)
         except pyroute2.netlink.exceptions.NetlinkError as e:
             raise fibinterface.FIBError(e.args[1], e)
+
+        return result
 
     def _route_to_dict(self, r):
         """Convert a Route to a dict of its non-None attributes."""

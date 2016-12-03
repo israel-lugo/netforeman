@@ -81,6 +81,15 @@ class FIBInterface:
         """
         raise NotImplementedError()
 
+    def get_route_to(self, rm):
+        """Get a route from the FIB matching the specified route.
+
+        Raises fibinterface.FIBError in case of error (such as no
+        permissions, route doesn't exist, and so on).
+
+        """
+        raise NotImplementedError()
+
     def replace_route(self, r):
         """Replace a route in the FIB.
 
