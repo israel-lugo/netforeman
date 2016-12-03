@@ -24,7 +24,12 @@
 """Routing table."""
 
 
+import importlib
+import socket
+
 import netaddr
+
+import netforeman.moduleapi
 
 
 class TCAM:
@@ -144,9 +149,44 @@ class RoutingTable:
         return self.tcam.longest_match(dest)
 
 
+class RoutingTableModuleAPI(netforeman.moduleapi.ModuleAPI):
+    """Routing table module API."""
+
+    def __init__(self, conf):
+        """Initialize the routing table module.
+
+        Receives a pyhocon.config_tree.ConfigTree object, containing the
+        module's config tree.
+
+        """
+        # TODO: Finish this. Parse the whole subtree.
+
+        fib_name = self._get_conf(conf, 'fib')
+        fib_module = self._load_fib_module(fib_name)
+
+        self.fib = fib_module.FIBInterface()
+
+        self.rt4 = RoutingTable(self.fib.get_routes(socket.AF_INET))
+        self.rt6 = RoutingTable(self.fib.get_routes(socket.AF_INET6))
+
+
+    @property
+    def actions(self):
+        """Get the routing table module's actions."""
+        return {'add_route': self.add_route}
+
+    def _load_fib_module(self, name):
+        """Load a FIB module."""
+        return importlib.import_module("{:s}.{:s}".format(__package__, name))
+
+
+
+API = RoutingTableModuleAPI
+
+
+
 if __name__ == '__main__':
     import linux
-    import socket
 
     fib = linux.LinuxFIBInterface()
 
