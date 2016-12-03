@@ -41,8 +41,8 @@ class ModuleAPI(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def commands(self):
-        """Get the module's commands."""
+    def actions(self):
+        """Get the module's actions."""
         return {}
 
     @staticmethod

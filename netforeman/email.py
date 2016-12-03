@@ -66,8 +66,8 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
         self.password = self._get_conf(conf, 'password', False)
 
     @property
-    def commands(self):
-        """Get the email module's commands."""
+    def actions(self):
+        """Get the email module's actions."""
 
         return {'sendmail': self.sendmail}
 
