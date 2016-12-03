@@ -40,6 +40,11 @@ class TCAM:
 
     """
 
+    # This is implemented as a dict of destlen, where the values are dicts
+    # of dest. In other words, the routes are first indexed by prefix
+    # length, and within a certain prefix length they are indexed by
+    # destination.
+
     def __init__(self):
         """Initialize an empty TCAM."""
         self.dests_by_len = {}
