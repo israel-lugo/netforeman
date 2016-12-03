@@ -24,6 +24,10 @@
 """Base classes for all FIB interfaces."""
 
 
+import netaddr
+
+import netforeman.moduleapi
+
 
 class FIBError(Exception):
     """Error from a FIB interface."""
@@ -99,4 +103,52 @@ class FIBInterface:
 
         """
         raise NotImplementedError()
+
+
+class FIBModuleAPI(netforeman.moduleapi.ModuleAPI):
+    """FIB module API."""
+
+    def __init__(self, conf):
+        """Initialize the FIB module.
+
+        Receives a pyhocon.config_tree.ConfigTree object, containing the
+        module's config tree.
+
+        """
+        # TODO: Implement _create_fib(). Depends on which FIB we are.
+        # Probably best done at the subclass level (abstractmethod). That
+        # means this should be an abstract class.
+        self.fib = self._create_fib()
+
+        for subconf in conf.get_list('route_checks', default=[]):
+            self.route_check(subconf)
+
+    def route_check(self, conf):
+        """Do route check.
+
+        Receives a pyhocon.config_tree.ConfigTree objects, containing the
+        description of the route check to perform.
+
+        """
+        dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
+        non_null = conf.get_bool(conf, 'non_null', False)
+        nexthops_any = conf.get_list('nexthops_any', default=[])
+        on_error = self._get_conf(conf, 'on_error')
+
+        # TODO: Finish this. Use fib.get_route_to, and see if it the
+        # route's nexthop is contained in nexthops_any (if there is a
+        # nexthops_any). On error, run the stuff in on_error.
+
+    @property
+    def actions(self):
+        """Get the routing table module's actions."""
+        return {'add_route': self.add_route}
+
+    def _load_fib_module(self, name):
+        """Load a FIB module."""
+        return importlib.import_module("{:s}.{:s}".format(__package__, name))
+
+
+
+API = FIBModuleAPI
 
