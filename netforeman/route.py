@@ -87,19 +87,15 @@ class Route:
     Can contain multiple nexthops (multipath route).
 
     """
-    def __init__(self, family, dest, destlen, nexthops, metric, proto, rt_type):
+    def __init__(self, dest, destlen, nexthops, metric, proto, rt_type):
         """Initialize a Route instance."""
-
-        self.family = self.validate_family(family)
-
-        if (self.family, dest.version) not in ((socket.AF_INET, 4), (socket.AF_INET6, 6)):
-            raise ValueError("family doesn't match dest's IP version")
 
         prefixlen = self.prefixlen_from_dest(dest)
         if prefixlen != destlen:
             raise ValueError("destlen ({:d}) doesn't match dest's prefix ({:d})".format(
                 destlen, prefixlen))
 
+        self.family = self.family_from_dest(dest)
         self.dest = dest
         self.destlen = destlen
         self.nexthops = nexthops
@@ -108,8 +104,8 @@ class Route:
         self.rt_type = rt_type
 
         if self.destlen == 0:
-            if ((family == socket.AF_INET and dest != netaddr.IPNetwork("0.0.0.0/0"))
-                    or (family == socket.AF_INET6 and dest != netaddr.IPNetwork("::/0"))):
+            if ((self.family == socket.AF_INET and dest != netaddr.IPNetwork("0.0.0.0/0"))
+                    or (self.family == socket.AF_INET6 and dest != netaddr.IPNetwork("::/0"))):
                 raise ValueError("destlen == 0 and dest isn't a default route")
 
         self.is_default = (destlen == 0)
@@ -187,6 +183,17 @@ class Route:
             prefixlen = 32 if dest.version == 4 else 128
 
         return prefixlen
+
+    @staticmethod
+    def family_from_dest(dest):
+        """Get the family from an IPAddress or an IPNetwork.
+
+        Returns an appropriate value for use in creating a Route object.
+
+        """
+        assert dest.version in (4, 6)
+
+        return socket.AF_INET if dest.version == 4 else socket.AF_INET6
 
     @classmethod
     def default_network(cls, family):

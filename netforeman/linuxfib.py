@@ -148,6 +148,9 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
             dest_str = "{:s}/{:d}".format(rtnl_msg.get_attr('RTA_DST'), destlen)
             dest = netaddr.IPNetwork(dest_str)
 
+        # make sure Netlink's idea of the protocol family equals our own
+        assert family == route.Route.family_from_dest(dest)
+
         # Linux only sets RTA_MULTIPATH on IPv4. IPv6 multipath routes are seen
         # as separate, unrelated routes, which happen to have the same dst.
         nh_msgs = rtnl_msg.get_attr('RTA_MULTIPATH')
@@ -163,7 +166,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
 
         rt_type = self._get_rt_typename(rtnl_msg['type'])
 
-        return route.Route(family, dest, destlen, nexthops, metric, proto, rt_type)
+        return route.Route(dest, destlen, nexthops, metric, proto, rt_type)
 
     def _nexthop_from_mpath_msg(self, msg):
         """Create a NextHop from an rtnetlink multipath message."""
