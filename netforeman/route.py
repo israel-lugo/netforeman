@@ -257,7 +257,7 @@ class RouteMatch(Route):
 
         s = str(self.dest) if not self.is_default else "default"
 
-        s = "{:s} ({:s})".format(s, self.rt_type)
+        s = "{:s} ({:s})".format(s, self.rt_type if self.rt_type else 'unspec')
 
         if self.multipath:
             s = "{:s} proto {:s}".format(s, str(self.proto))
