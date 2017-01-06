@@ -83,6 +83,11 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
 
         return self._route_from_rtnl_msg(match)
 
+    # TODO: Create a get_all_routes_to() method, that returns all routes to
+    # a certain destination (or rm, not sure). Will be necessary for
+    # a route check (on FIBModuleAPI), that makes sure that the nexthops
+    # are exactly as specified.
+
     def replace_route(self, r):
         """Replace a route in the FIB.
 
