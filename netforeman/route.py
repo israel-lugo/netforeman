@@ -183,6 +183,7 @@ class Route:
 
         if prefixlen is None:
             # dest must be an IPAddress
+            assert dest.version in (4, 6)
             prefixlen = 32 if dest.version == 4 else 128
 
         return prefixlen
