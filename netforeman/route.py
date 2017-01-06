@@ -209,14 +209,20 @@ class Route:
 class RouteMatch(Route):
     """Route subclass that accepts incomplete parameters, for matching."""
 
-    def __init__(self, family, dest=None, destlen=None, nexthops=None, metric=None, proto=None, rt_type=None):
+    def __init__(self, family=None, dest=None, destlen=None, nexthops=None, metric=None, proto=None, rt_type=None):
         """Initialize a RouteMatch instance."""
 
-        self.family = self.validate_family(family)
+        if family is None and dest is None:
+            raise ValueError("at least one of family or dest must be provided")
+
+        if family is not None:
+            self.family = self.validate_family(family)
 
         # these checks only make sense if dest was provided
         if dest is not None:
-            if (self.family, dest.version) not in ((socket.AF_INET, 4), (socket.AF_INET6, 6)):
+            if family is None:
+                self.family = self.family_from_dest(dest)
+            elif (self.family, dest.version) not in ((socket.AF_INET, 4), (socket.AF_INET6, 6)):
                 raise ValueError("family doesn't match dest's IP version")
 
             prefixlen = self.prefixlen_from_dest(dest)
