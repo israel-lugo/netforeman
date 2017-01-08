@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 # NetForeman - making sure your network is running smoothly
-# Copyright (C) 2016 Israel G. Lugo
+# Copyright (C) 2016, 2017 Israel G. Lugo
 #
 # This file is part of NetForeman.
 #
