@@ -24,6 +24,7 @@
 """Linux interface."""
 
 import socket
+import errno
 import netaddr
 import pyroute2
 
@@ -209,7 +210,6 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         try:
             iface = self.ipr.link("get", index=index)[0]
         except pyroute2.netlink.exceptions.NetlinkError as e:
-            import errno
             if e.code == errno.ENODEV:
                 return None
 
