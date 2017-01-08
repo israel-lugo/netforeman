@@ -36,6 +36,10 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         Receives a pyhocon.config_tree.ConfigTree object, containing the
         module's config tree.
 
+        This method is only for initialization and should not execute any
+        independent behavior, such as user-configured checks and actions.
+        The run method should be used for that.
+
         """
         pass
 
@@ -44,6 +48,19 @@ class ModuleAPI(metaclass=abc.ABCMeta):
     def actions(self):
         """Get the module's actions."""
         return {}
+
+    # This method need not be overriden if the module doesn't do anything
+    # by itself (e.g. it only exists to provide callable actions).
+    def run(self):
+        """Run any configured verifications and actions in this module.
+
+        This method should be overriden by modules with their own
+        independent behavior, e.g. modules that perform user-configured
+        verifications or actions by themselves. Modules which only provide
+        callable actions (e.g. sendemail) need not override this.
+
+        """
+        pass
 
     @staticmethod
     def _get_conf(conf, name, required=True):

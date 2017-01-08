@@ -120,7 +120,12 @@ class FIBModuleAPI(netforeman.moduleapi.ModuleAPI):
         # means this should be an abstract class.
         self.fib = self._create_fib()
 
-        for subconf in conf.get_list('route_checks', default=[]):
+        self.conf = conf
+
+    def run(self):
+        """Run any configured verifications and actions in this module."""
+
+        for subconf in self.conf.get_list('route_checks', default=[]):
             self.route_check(subconf)
 
     def route_check(self, conf):

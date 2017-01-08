@@ -36,6 +36,15 @@ class ParseError(Exception):
         return self.message
 
 
+class ModuleInfo:
+    """Information about a loaded module."""
+
+    def __init__(self, name, module, api):
+        self.name = name
+        self.module = module
+        self.api = api
+
+
 class Configurator:
 
     def __init__(self, filename):
@@ -58,17 +67,18 @@ class Configurator:
         except pyhocon.exceptions.ConfigMissingException as e:
             raise ParseError("missing mandatory section 'modules'")
 
-        # load the modules
-        self.modules = [
-                importlib.import_module("{:s}.{:s}".format(__package__, module))
-            for module in modules_to_load
-        ]
+        self.loaded_modules = []
+        self.modules_by_name = {}
+        for name in modules_to_load:
+            if name in self.modules_by_name:
+                raise ParseError("module '{:s}' duplicated, already loaded".format(name))
 
-        # create the API object for every loaded module
-        self.module_apis = [
-            m.API(self.get_module_conf(m))
-            for m in self.modules
-        ]
+            module = importlib.import_module("{:s}.{:s}".format(__package__, name))
+            api = module.API(self.get_module_conf(module))
+            modinfo = ModuleInfo(name, module, api)
+
+            self.loaded_modules.append(modinfo)
+            self.modules_by_name[name] = modinfo
 
     def get_module_conf(self, module):
         """Get the a module's config tree.
