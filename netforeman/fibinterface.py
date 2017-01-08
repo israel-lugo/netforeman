@@ -136,7 +136,7 @@ class FIBModuleAPI(netforeman.moduleapi.ModuleAPI):
 
         """
         dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
-        non_null = conf.get_bool(conf, 'non_null', False)
+        non_null = conf.get_bool('non_null', default=False)
         nexthops_any = conf.get_list('nexthops_any', default=[])
         on_error = self._get_conf(conf, 'on_error')
 
