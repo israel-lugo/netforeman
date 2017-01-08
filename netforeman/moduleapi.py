@@ -44,6 +44,15 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         pass
 
     @property
+    def name(self):
+        """Get the module's name.
+
+        This is the module's basename, as used for importing.
+
+        """
+        return self.__module__.rpartition('.')[2]
+
+    @property
     @abc.abstractmethod
     def actions(self):
         """Get the module's actions."""
