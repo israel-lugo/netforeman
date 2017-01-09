@@ -71,16 +71,6 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
 
         return {'sendmail': self.sendmail}
 
-    @classmethod
-    def get_module_args(cls):
-        """Get the names of the module arguments.
-
-        This is a dictionary of {name: required}, where name is the name of
-        the argument, and required is True if the argument must be present.
-
-        """
-        return cls._module_args
-
     def sendmail(self, subject, text=''):
         """Send an email message."""
 
