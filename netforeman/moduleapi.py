@@ -26,8 +26,31 @@
 import abc
 
 
+class ActionContext:
+    """Context information for an action.
+
+    Useful for the dispatcher to resolve relative actions, and also for the
+    modules to pass a message to an action.
+
+    """
+
+    def __init__(self, calling_module, message):
+        self.calling_module = calling_module
+        self.message = message
+
+
 class ModuleAPI(metaclass=abc.ABCMeta):
-    """Base class for the API of all NetForeman modules."""
+    """Base class for the API of all NetForeman modules.
+
+    Modules must override a set of abstract methods and properties. Also,
+    they may provide callbacks, known as actions.
+
+    The actions must be available in the actions property, in the form of a
+    dictionary of name: function. The function is to receive 2 arguments:
+    conf (an instance of pyhocon.config_tree.ConfigTree) and context (an
+    ActionContext).
+
+    """
 
     @abc.abstractmethod
     def __init__(self, conf):
@@ -60,8 +83,11 @@ class ModuleAPI(metaclass=abc.ABCMeta):
 
     # This method need not be overriden if the module doesn't do anything
     # by itself (e.g. it only exists to provide callable actions).
-    def run(self):
+    def run(self, dispatch):
         """Run any configured verifications and actions in this module.
+
+        Receives an instance of the module dispatch. This may be used by
+        the module to execute actions.
 
         This method should be overriden by modules with their own
         independent behavior, e.g. modules that perform user-configured

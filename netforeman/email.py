@@ -71,9 +71,21 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
 
         return {'sendmail': self.sendmail}
 
-    def sendmail(self, subject, text=''):
-        """Send an email message."""
+    def sendmail(self, conf, context):
+        """Send an email message.
 
+        Receives a pyhocon.config_tree.ConfigTree instance and an
+        ActionContext.
+
+        """
+
+        # TODO: Make this default subject configurable in the module args
+        subject = conf.get_string('subject', default="Email from NetForeman")
+        text = ("This is an automated email, sent from NetForeman.\n"
+                "\n"
+                "It was triggered by the {:s} module, with the following message:\n"
+                "\n"
+                "{:s}\n".format(context.calling_module, context.message))
         msg = _Email(text, self.from_address, self.to_address, subject)
 
         sender = smtplib.SMTP(self.server, self.port)

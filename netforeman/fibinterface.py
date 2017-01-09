@@ -26,7 +26,8 @@
 
 import netaddr
 
-import netforeman.moduleapi
+from netforeman import moduleapi
+from netforeman import route
 
 
 class FIBError(Exception):
@@ -105,7 +106,7 @@ class FIBInterface:
         raise NotImplementedError()
 
 
-class FIBModuleAPI(netforeman.moduleapi.ModuleAPI):
+class FIBModuleAPI(moduleapi.ModuleAPI):
     """FIB module API."""
 
     def __init__(self, conf):
@@ -122,13 +123,13 @@ class FIBModuleAPI(netforeman.moduleapi.ModuleAPI):
 
         self.conf = conf
 
-    def run(self):
+    def run(self, dispatch):
         """Run any configured verifications and actions in this module."""
 
         for subconf in self.conf.get_list('route_checks', default=[]):
-            self.route_check(subconf)
+            self.route_check(subconf, dispatch)
 
-    def route_check(self, conf):
+    def route_check(self, conf, dispatch):
         """Do route check.
 
         Receives a pyhocon.config_tree.ConfigTree objects, containing the
@@ -140,14 +141,49 @@ class FIBModuleAPI(netforeman.moduleapi.ModuleAPI):
         nexthops_any = conf.get_list('nexthops_any', default=[])
         on_error = self._get_conf(conf, 'on_error')
 
-        # TODO: Finish this. Use fib.get_route_to, and see if it the
-        # route's nexthop is contained in nexthops_any (if there is a
-        # nexthops_any). On error, run the stuff in on_error.
+        nexthops_any = [netaddr.IPAddress(nh) for nh in nexthops_any]
+
+        rm = route.RouteMatch(dest=dest)
+
+        r = self.fib.get_route_to(rm)
+
+        if r:
+            if not nexthops_any:
+                return True
+
+            for nh in r.nexthops:
+                if nh.gw in nexthops_any:
+                    return True
+
+            error_reason = "via [{:s}], should be via [{:s}]".format(
+                    ', '.join((str(nh.gw) for nh in r.nexthops)),
+                    ', '.join((str(nh) for nh in nexthops_any)))
+        else:
+            error_reason = "not found"
+
+        context = moduleapi.ActionContext(self.name,
+                "route_check: route to {:s} {:s}".format(str(dest), error_reason))
+
+        for action in on_error:
+            dispatch.execute_action(action, context)
+
+        return False
 
     @property
     def actions(self):
         """Get the routing table module's actions."""
         return {'add_route': self.add_route}
+
+    def add_route(self, conf, context):
+        """Add a route to the FIB.
+
+        Receives a pyhocon.config_tree.ConfigTree instance and an
+        ActionContext.
+
+        """
+        # TODO: Implement me.
+        pass
+
 
     def _load_fib_module(self, name):
         """Load a FIB module."""

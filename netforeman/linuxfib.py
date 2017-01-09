@@ -259,3 +259,10 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
 
 FIBInterface = LinuxFIBInterface
 
+
+class LinuxFIBModuleAPI(fibinterface.FIBModuleAPI):
+    def _create_fib(self):
+        """Create a FIB instance."""
+        return LinuxFIBInterface()
+
+API = LinuxFIBModuleAPI
