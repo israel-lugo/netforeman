@@ -109,6 +109,9 @@ class FIBInterface:
 class FIBModuleAPI(moduleapi.ModuleAPI):
     """FIB module API."""
 
+    default_metric = 1024
+    proto = 'static'
+
     def __init__(self, conf):
         """Initialize the FIB module.
 
@@ -181,9 +184,15 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         ActionContext.
 
         """
-        # TODO: Implement me.
-        pass
+        dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
+        nexthops = [
+                route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
+                for gw in conf.get_list('nexthops')
+        ]
+        r = route.Route(dest, dest.prefixlen, nexthops,
+                str(self.default_metric), self.proto, 'unicast')
 
+        self.fib.add_route(r)
 
     def _load_fib_module(self, name):
         """Load a FIB module."""
