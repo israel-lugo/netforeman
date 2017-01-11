@@ -138,7 +138,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         """Convert a NextHop to a dict of its non-None attributes."""
         d = {}
 
-        if nh.gw is not None: d['gw'] = str(nh.gw)
+        if nh.gw is not None: d['gateway'] = str(nh.gw)
         if nh.ifname is not None: d['oif'] = self._get_ifidx(nh.ifname)
 
         return d
