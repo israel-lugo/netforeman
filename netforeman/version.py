@@ -29,3 +29,5 @@ Public members:
 """
 
 __version__ = '0.1.0'
+
+# vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

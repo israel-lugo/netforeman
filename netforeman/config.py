@@ -97,3 +97,4 @@ class Configurator:
 
         return module_conf
 
+# vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

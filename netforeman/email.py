@@ -95,3 +95,4 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
 
 API = EmailModuleAPI
 
+# vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

@@ -236,3 +236,4 @@ if __name__ == '__main__':
     for r in rt6:
         print(r)
 
+# vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

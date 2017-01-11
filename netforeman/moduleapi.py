@@ -111,3 +111,4 @@ class ModuleAPI(metaclass=abc.ABCMeta):
             raise KeyError("missing required argument '{:s}'".format(name))
 
         return value
+# vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :
