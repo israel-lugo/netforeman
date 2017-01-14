@@ -23,23 +23,46 @@
 
 """Dispatch module."""
 
+import logging
 
 from netforeman import config
 
 
+class DispatchError(Exception):
+    """Error while dispatching."""
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
 class Dispatch:
     def __init__(self, config_filename):
-        """Initialize a dispatcher."""
+        """Initialize a dispatcher.
 
+        Receives the name of the configuration file to parse.
+
+        """
+        self.logger = logging.getLogger('netforeman.dispatch')
         self.config = config.Configurator(config_filename)
 
-        self.config.load_modules()
+        ok = self.config.load_modules()
+        if not ok:
+            raise DispatchError("errors while loading modules")
 
     def run(self):
         """Run module behavior."""
 
+        errors = False
         for modinfo in self.config.loaded_modules:
-            modinfo.api.run(self)
+            try:
+                modinfo.api.run(self)
+            except config.ParseError as e:
+                self.logger.error("config error in module '%s': %s", modinfo.name, str(e))
+                errors = True
+
+        return not errors
 
     def execute_action(self, action_conf, context):
         """Execute an action.
@@ -67,7 +90,7 @@ class Dispatch:
             raise config.ParseError("no such module '{:s}' in action definition".format(module_name))
 
         if relative_action not in api.actions:
-            raise NameError("action '{:s}' not defined in module '{:s}'".format(action, module_name))
+            raise config.ParseError("action '{:s}' not defined in module '{:s}'".format(action, module_name))
 
         api.actions[relative_action](action_conf, context)
 

@@ -24,10 +24,12 @@
 """Base classes for all FIB interfaces."""
 
 
+import logging
 import netaddr
 
 from netforeman import moduleapi
 from netforeman import route
+from netforeman import config
 
 
 class FIBError(Exception):
@@ -119,6 +121,8 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         module's config tree.
 
         """
+        super().__init__(conf)
+
         # TODO: Implement _create_fib(). Depends on which FIB we are.
         # Probably best done at the subclass level (abstractmethod). That
         # means this should be an abstract class.
@@ -140,6 +144,8 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
 
         """
         dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
+        self.logger.debug("checking route to %s", str(dest))
+
         non_null = conf.get_bool('non_null', default=False)
         nexthops_any = conf.get_list('nexthops_any', default=[])
         on_error = self._get_conf(conf, 'on_error')
@@ -168,7 +174,10 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
                 "route_check: route to {:s} {:s}".format(str(dest), error_reason))
 
         for action in on_error:
-            dispatch.execute_action(action, context)
+            try:
+                dispatch.execute_action(action, context)
+            except config.ParseError as e:
+                self.logger.error("unable to execute action: %s", str(e))
 
         return False
 

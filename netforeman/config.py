@@ -23,12 +23,14 @@
 
 """Configuration parser."""
 
+import logging
 import importlib
 
 import pyhocon
 
 
 class ParseError(Exception):
+    """Error while parsing configuration."""
     def __init__(self, message):
         self.message = message
 
@@ -50,35 +52,67 @@ class Configurator:
     def __init__(self, filename):
         """Initializes a Configurator by parsing a configuration file.
 
-        Raises ParseError in case of error.
+        Receives the name of the configuration file. Raises ParseError in
+        case of error.
 
         """
         self.filename = filename
+
+        self.logger = logging.getLogger('netforeman.config')
+        self.logger.debug("parsing configuration file '%s'", filename)
 
         try:
             self.conf = pyhocon.ConfigFactory.parse_file(filename)
         except pyhocon.exceptions.ConfigException as e:
             raise ParseError(str(e))
 
+        self.logger.debug("finished parsing configuration file")
+
     def load_modules(self):
-        """Load configured modules."""
+        """Load configured modules.
+
+        Returns True if all modules loaded without error, False otherwise.
+
+        """
         try:
             modules_to_load = self.conf['modules']
         except pyhocon.exceptions.ConfigMissingException as e:
-            raise ParseError("missing mandatory section 'modules'")
+            self.logger.error("missing mandatory section 'modules'")
+            return False
+
+        errors = False
 
         self.loaded_modules = []
         self.modules_by_name = {}
         for name in modules_to_load:
+            self.logger.debug("loading module '%s'", name)
+
             if name in self.modules_by_name:
-                raise ParseError("module '{:s}' duplicated, already loaded".format(name))
+                self.logger.warning("ignoring duplicate entry for module '%s', already loaded", name)
 
-            module = importlib.import_module("{:s}.{:s}".format(__package__, name))
-            api = module.API(self.get_module_conf(module))
-            modinfo = ModuleInfo(name, module, api)
+            try:
+                modinfo = self.load_module(name)
 
-            self.loaded_modules.append(modinfo)
-            self.modules_by_name[name] = modinfo
+                self.loaded_modules.append(modinfo)
+                self.modules_by_name[name] = modinfo
+            except ParseError as e:
+                self.logger.error("module '%s': %s", name, str(e))
+                errors = True
+
+        return not errors
+
+    def load_module(self, name):
+        """Load the module with the specified name.
+
+        Returns a ModuleInfo instance. The underlying module will raise
+        ParseError in case of error.
+
+        """
+        module = importlib.import_module("{:s}.{:s}".format(__package__, name))
+        api = module.API(self.get_module_conf(module))
+        modinfo = ModuleInfo(name, module, api)
+
+        return modinfo
 
     def get_module_conf(self, module):
         """Get the a module's config tree.

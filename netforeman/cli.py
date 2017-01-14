@@ -25,6 +25,8 @@
 
 
 import argparse
+import logging
+import sys
 
 from netforeman import dispatch
 
@@ -32,6 +34,21 @@ from netforeman.version import __version__
 
 
 __all__ = [ 'main' ]
+
+
+def create_logger():
+    """Set up logging and return a logger object."""
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+
+    stderr = logging.StreamHandler()
+    stderr.setLevel(logging.DEBUG)
+    stderr.setFormatter(logging.Formatter("%(asctime)s %(name)s: %(levelname)s: %(message)s"))
+
+    root_logger.addHandler(stderr)
+
+    return logging.getLogger('netforeman')
 
 
 def parse_args():
@@ -53,21 +70,28 @@ def parse_args():
 
     return args
 
-
 def main():
     """Main program function."""
 
+    logger = create_logger()
+
     args = parse_args()
 
-    # TODO: Catch errors. Create logger.
-
-    dispatcher = dispatch.Dispatch(args.config_file)
+    try:
+        dispatcher = dispatch.Dispatch(args.config_file)
+    except dispatch.DispatchError as e:
+        logger.error("aborting: %s", str(e))
+        return 1
 
     dispatcher.run()
 
+    logger.info('all done, terminating...')
+
+    return 0
+
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
 
 
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

@@ -23,7 +23,10 @@
 """API definition for all NetForeman modules."""
 
 
+import logging
 import abc
+
+from netforeman.config import ParseError
 
 
 class ActionContext:
@@ -59,12 +62,15 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         Receives a pyhocon.config_tree.ConfigTree object, containing the
         module's config tree.
 
+        Subclasses SHOULD call the original method for initializing common
+        attributes such as logging.
+
         This method is only for initialization and should not execute any
         independent behavior, such as user-configured checks and actions.
         The run method should be used for that.
 
         """
-        pass
+        self.logger = logging.getLogger("netforeman.%s" % self.name)
 
     @property
     def name(self):
@@ -108,7 +114,7 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         """
         value = conf.get(name, None)
         if value is None and required:
-            raise KeyError("missing required argument '{:s}'".format(name))
+            raise ParseError("missing required argument '{:s}'".format(name))
 
         return value
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

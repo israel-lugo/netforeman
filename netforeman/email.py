@@ -58,6 +58,8 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
         module's config tree.
 
         """
+        super().__init__(conf)
+
         self.from_address = self._get_conf(conf, 'from_address')
         self.to_address = self._get_conf(conf, 'to_address')
         self.server = self._get_conf(conf, 'server')
