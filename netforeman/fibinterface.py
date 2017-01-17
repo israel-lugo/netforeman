@@ -203,9 +203,6 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
 
         self.fib.add_route(r)
 
-    def _load_fib_module(self, name):
-        """Load a FIB module."""
-        return importlib.import_module("{:s}.{:s}".format(__package__, name))
 
 
 
