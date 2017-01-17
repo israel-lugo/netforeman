@@ -57,6 +57,7 @@ class Dispatch:
         errors = False
         for modinfo in self.config.loaded_modules:
             try:
+                self.logger.debug("running module %s", modinfo.api.name)
                 modinfo.api.run(self)
             except config.ParseError as e:
                 self.logger.error("config error in module '%s': %s", modinfo.name, str(e))
@@ -83,6 +84,8 @@ class Dispatch:
 
         if not module_name:
             module_name = context.calling_module
+
+        self.logger.debug("executing module %s's action %s", module_name, relative_action)
 
         try:
             api = self.config.modules_by_name[module_name].api

@@ -144,7 +144,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
 
         """
         dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
-        self.logger.debug("checking route to %s", str(dest))
+        self.logger.debug("checking route to %s", dest)
 
         non_null = conf.get_bool('non_null', default=False)
         nexthops_any = conf.get_list('nexthops_any', default=[])
@@ -157,18 +157,24 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         r = self.fib.get_route_to(rm)
 
         if r:
+            self.logger.debug("route found, via %s", self._nexthops_str(r.nexthops))
+
             if not nexthops_any:
+                self.logger.info("route to %s exists, check satisfied", dest)
                 return True
 
             for nh in r.nexthops:
                 if nh.gw in nexthops_any:
+                    self.logger.debug("route to %s matches NH, check satisfied", dest)
                     return True
 
-            error_reason = "via [{:s}], should be via [{:s}]".format(
-                    ', '.join((str(nh.gw) for nh in r.nexthops)),
-                    ', '.join((str(nh) for nh in nexthops_any)))
+            error_reason = "via {:s}, not in [{:s}]".format(
+                    self._nexthops_str(r.nexthops),
+                    ', '.join(str(ip) for ip in nexthops_any))
         else:
             error_reason = "not found"
+
+        self.logger.warn("route check to %s failed: %s", dest, error_reason)
 
         context = moduleapi.ActionContext(self.name,
                 "route_check: route to {:s} {:s}".format(str(dest), error_reason))
@@ -201,8 +207,16 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         r = route.Route(dest, dest.prefixlen, nexthops,
                 str(self.default_metric), self.proto, 'unicast')
 
+        self.logger.info("adding route to %s via %s", dest, self._nexthops_str(r.nexthops))
         self.fib.add_route(r)
 
+    @staticmethod
+    def _nexthops_str(nexthops):
+        """Return a string representation of a list of nexthops."""
+        if len(nexthops) == 1:
+            return str(nexthops[0].gw)
+        else:
+            return "[{:s}]".format(', '.join(str(nh.gw) for nh in nexthops))
 
 
 
