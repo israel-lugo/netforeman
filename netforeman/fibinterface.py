@@ -97,6 +97,16 @@ class FIBInterface:
         """
         raise NotImplementedError()
 
+    def get_default_routes(self, family):
+        """Get the list of default routes for the specified family.
+
+        The list will be empty if no default routes exist. Raises
+        fibinterface.FIBError in case of error (such as no permissions, and
+        so on).
+
+        """
+        raise NotImplementedError()
+
     def replace_route(self, r):
         """Replace a route in the FIB.
 
