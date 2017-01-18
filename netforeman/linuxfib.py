@@ -78,11 +78,37 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         permissions, route doesn't exist, and so on).
 
         """
+        if rm.is_default:
+            # Netlink's "get" doesn't work on default routes, see issue #8
+            default_routes = self.get_default_routes(rm.family)
+            if not default_routes:
+                # XXX we should distinguish between error and no route
+                raise fibinterface.FIBError("no default routes exist for IPv%d"
+                        % (4 if rm.family == socket.AF_INET else 6))
+
+            # we're supposed to return _a_ route
+            return default_routes[0]
+
         # FIXME: This breaks with a NetlinkError(22, "Invalid argument") if
         # the route resolves to an unreachable or blackhole.
         match = self._route_cmd("get", rm)[0]
 
         return self._route_from_rtnl_msg(match)
+
+    def get_default_routes(self, family):
+        """Get the list of default routes for the specified family.
+
+        The list will be empty if no default routes exist. Raises
+        fibinterface.FIBError in case of error (such as no permissions, and
+        so on).
+
+        """
+        nl_routes = self.ipr.get_routes(family=family, table=254)
+
+        return [self._route_from_rtnl_msg(msg)
+                for msg in nl_routes
+                if msg['dst_len'] == 0]
+
 
     # TODO: Create a get_all_routes_to() method, that returns all routes to
     # a certain destination (or rm, not sure). Will be necessary for
