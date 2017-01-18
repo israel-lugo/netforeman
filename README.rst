@@ -35,7 +35,7 @@ yet ready for production use. The following features are planned for now:
 Verifications
 .............
 
-- Monitor the routing table (only Linux for now, but planning for being extensible)
+- Monitor the routing table (only Linux for now, but designing for extensibility)
 
   - The number of routes is within a certain range
   - There is a route for a certain prefix
