@@ -7,13 +7,14 @@ Making sure your network is running smoothly.
 
 NetForeman is your network's foreman: an advanced programmable network system
 supervisor. It is meant to run on network infrastructure systems, such as
-routers, for automatic monitoring and reacting to a wide array of situations.
+routers or automated probes, for automatic monitoring and reacting to a wide
+array of situations.
 
-The idea behind this program is to automate problem solving whenever possible.
-You shouldn't have to stare at screens and graphs 24/7 to know that your
-firewall's connection tracking table is almost full. When that happens, you
-shouldn't have to manually go check the top 10 flow endpoints, to find out that
-a single host is sourcing 1,000,000 flows to different IPs.
+The idea behind this program is to automate issue detection and problem solving
+whenever possible. You shouldn't have to stare at screens and graphs 24/7 to
+know that your firewall's connection tracking table is almost full. When that
+happens, you shouldn't have to manually go check the top 10 flow endpoints, to
+find out that a single host is sourcing 1,000,000 flows to different IPs.
 
 Likewise, you shouldn't have to check the routing table on 20 routers to find
 out that your OSPF designated router is failing in a silent way, still sending
@@ -47,6 +48,10 @@ Verifications
 - Monitor connection tracking
 
   - The number of tracked connections doesn't exceed a certain limit
+
+- Monitor active DHCP servers
+
+  - Only a specific set of IPs respond to DHCP queries
 
 Actions
 .......
