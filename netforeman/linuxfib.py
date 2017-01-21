@@ -89,9 +89,25 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
             # we're supposed to return _a_ route
             return default_routes[0]
 
-        # FIXME: This breaks with a NetlinkError(22, "Invalid argument") if
-        # the route resolves to an unreachable or blackhole.
-        match = self._route_cmd("get", rm)[0]
+        try:
+            match = self._route_cmd("get", rm)[0]
+
+        except fibinterface.FIBError as e:
+            if e.orig.code == errno.ENETUNREACH:
+                # route is unreachable or blackhole; kernel complains, we
+                # have to resolve it ourselves (see issue #5)
+                routes = self.matching_routes_to(rm.dest)
+                if not routes:
+                    # unreachable route existed, but no route exists now
+                    # (protect from race condition)
+                    raise fibinterface.FIBError("no route exists for %s"
+                            % rm.dest)
+
+                # return most specific route (should be the blackhole one)
+                return routes[0]
+            else:
+                # unknown error, re-raise
+                raise
 
         return self._route_from_rtnl_msg(match)
 
@@ -109,6 +125,35 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
                 for msg in nl_routes
                 if msg['dst_len'] == 0]
 
+    def matching_routes_to(self, dest):
+        """Get the list of all routes matching the specified dest.
+
+        dest should be a netaddr.IPNetwork. The list of routes will be
+        sorted from most specific (longest) to least specific (shortest).
+        The list will be empty if there are no routes matching dest.
+
+        This function does the route matching in user space, as opposed to
+        getting the routes from the kernel. It is the only way to deal with
+        blackhole or unreachable IPv4 routes on Linux, as asking the kernel
+        to resolve would result in an error.
+
+        """
+        nl_routes = self.ipr.get_routes(
+                family=route.Route.family_from_dest(dest),
+                table=254)
+
+        destlen = dest.prefixlen
+
+        return sorted(
+            [self._route_from_rtnl_msg(msg)
+             for msg in nl_routes
+             if msg['dst_len'] == 0     # include default route, which has no RTA_DST
+                or (msg['dst_len'] <= destlen
+                    and dest
+                        in netaddr.IPNetwork("%s/%d" % (msg.get_attr('RTA_DST'), msg['dst_len'])))
+            ],
+            key=lambda r: r.destlen,    # sort by prefix length (specificity)
+            reverse=True)
 
     # TODO: Create a get_all_routes_to() method, that returns all routes to
     # a certain destination (or rm, not sure). Will be necessary for
