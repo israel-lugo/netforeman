@@ -146,6 +146,24 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         for subconf in self.conf.get_list('route_checks', default=[]):
             self.route_check(subconf, dispatch)
 
+    def _route_check_failed(self, dispatch, dest, error_reason, on_error):
+        """Handle a failed route check.
+
+        Logs a warning and executes the actions in on_error, which should
+        be a list of pyhocon.config_tree.ConfigTree.
+
+        """
+        self.logger.warn("route_check to %s failed: %s", dest, error_reason)
+
+        context = moduleapi.ActionContext(self.name,
+                "route_check: route to {:s} {:s}".format(str(dest), error_reason))
+
+        for action in on_error:
+            try:
+                dispatch.execute_action(action, context)
+            except config.ParseError as e:
+                self.logger.error("unable to execute action: %s", str(e))
+
     def route_check(self, conf, dispatch):
         """Do route check.
 
@@ -166,36 +184,27 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
 
         r = self.fib.get_route_to(rm)
 
-        if r:
-            self.logger.debug("route found, via %s", self._nexthops_str(r.nexthops))
+        if r is None:
+            self._route_check_failed(dispatch, dest, "not found", on_error)
+            return False
 
-            if not nexthops_any:
-                self.logger.info("route to %s exists, check satisfied", dest)
-                return True
+        self.logger.debug("route found, via %s", self._nexthops_str(r.nexthops))
 
+        if nexthops_any:
             for nh in r.nexthops:
                 if nh.gw in nexthops_any:
-                    self.logger.debug("route to %s matches NH, check satisfied", dest)
-                    return True
+                    self.logger.debug("route to %s via expected NH %s", dest, nh.gw)
+                    break
+            else:
+                error_reason = "via {:s}, not in [{:s}]".format(
+                        self._nexthops_str(r.nexthops),
+                        ', '.join(str(ip) for ip in nexthops_any))
+                self._route_check_failed(dispatch, dest, error_reason, on_error)
+                return False
 
-            error_reason = "via {:s}, not in [{:s}]".format(
-                    self._nexthops_str(r.nexthops),
-                    ', '.join(str(ip) for ip in nexthops_any))
-        else:
-            error_reason = "not found"
+        self.logger.info("route_check to %s check satisfied", dest)
 
-        self.logger.warn("route check to %s failed: %s", dest, error_reason)
-
-        context = moduleapi.ActionContext(self.name,
-                "route_check: route to {:s} {:s}".format(str(dest), error_reason))
-
-        for action in on_error:
-            try:
-                dispatch.execute_action(action, context)
-            except config.ParseError as e:
-                self.logger.error("unable to execute action: %s", str(e))
-
-        return False
+        return True
 
     @property
     def actions(self):
