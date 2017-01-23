@@ -215,7 +215,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
                 for gw in conf.get_list('nexthops')
         ]
         r = route.Route(dest, dest.prefixlen, nexthops,
-                str(self.default_metric), self.proto, 'unicast')
+                str(self.default_metric), self.proto, route.RouteType.unicast)
 
         self.logger.info("adding route to %s via %s", dest, self._nexthops_str(r.nexthops))
         self.fib.add_route(r)

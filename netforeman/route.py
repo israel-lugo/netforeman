@@ -81,6 +81,25 @@ class NextHop:
         return not self.__eq__(other)
 
 
+class RouteType(enum.Enum):
+    """Route types."""
+    # These were taken from the Linux Netlink route types
+    unspec = 0,
+    unicast = 1,        # Gateway or direct route
+    local = 2,          # Accept locally
+    broadcast = 3,      # Accept locally as broadcast
+                        # send as broadcast
+    anycast = 4,        # Accept locally as broadcast,
+                        # but send as unicast
+    multicast = 5,      # Multicast route
+    blackhole = 6,      # Drop
+    unreachable = 7,    # Destination is unreachable
+    prohibit = 8,       # Administratively prohibited
+    throw = 9,          # Not in this table
+    nat = 10,           # Translate this address
+    xresolve = 11       # Use external resolver
+
+
 class Route:
     """Route to a certain destination.
 
@@ -141,7 +160,7 @@ class Route:
 
         s = str(self.dest) if not self.is_default else "default"
 
-        s = "{:s} ({:s})".format(s, self.rt_type)
+        s = "{:s} ({:s})".format(s, self.rt_type.name)
 
         if self.multipath:
             s = "{:s} proto {:s}".format(s, self.proto)

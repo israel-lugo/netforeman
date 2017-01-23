@@ -32,6 +32,26 @@ from netforeman import route
 from netforeman import fibinterface
 
 
+
+# Mapping of Netlink route types to route.RouteType. We use this so we
+# don't have to rely on RouteType values matching Netlink order. We can
+# change this to a dict if we ever need to.
+_nl_rttype_to_rttype = [
+    route.RouteType.unspec,
+    route.RouteType.unicast,
+    route.RouteType.local,
+    route.RouteType.broadcast,
+    route.RouteType.anycast,
+    route.RouteType.multicast,
+    route.RouteType.blackhole,
+    route.RouteType.unreachable,
+    route.RouteType.prohibit,
+    route.RouteType.throw,
+    route.RouteType.nat,
+    route.RouteType.xresolve
+]
+
+
 class LinuxFIBInterface(fibinterface.FIBInterface):
     """Interface to an underlying Linux FIB."""
 
@@ -192,11 +212,15 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         return result
 
     def _route_to_dict(self, r):
-        """Convert a Route to a dict of its non-None attributes."""
+        """Convert a Route to a dict of its non-None attributes
+
+        The attributes are formatted for use in a Netlink message.
+
+        """
         d = {}
 
         if r.dest is not None: d['dst'] = str(r.dest)
-        if r.rt_type is not None: d['type'] = r.rt_type
+        if r.rt_type is not None: d['type'] = r.rt_type.name
         if r.proto is not None: d['proto'] = r.proto
         if r.multipath:
             d['multipath'] = [self._nexthop_to_dict(nh) for nh in r.nexthops]
@@ -241,7 +265,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
 
         proto = self._get_proto_name(rtnl_msg['proto'])
 
-        rt_type = self._get_rt_typename(rtnl_msg['type'])
+        rt_type = self._get_rt_type(rtnl_msg['type'])
 
         return route.Route(dest, destlen, nexthops, metric, proto, rt_type)
 
@@ -310,13 +334,15 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         return nh_type
 
     @staticmethod
-    def _get_rt_typename(typenum):
-        """Get the route type name from its number.
+    def _get_rt_type(typenum):
+        """Get the route.RouteType from a Netlink route type.
 
-        Raises KeyError if the route type is unknown.
+        Raises a subclass of LookupError if typenum is unknown.
 
         """
-        return pyroute2.netlink.rtnl.rt_type[typenum]
+        # we reserve the right to change this to a dict in the future;
+        # hence, we say we raise the base class of IndexError and KeyError
+        return _nl_rttype_to_rttype[typenum]
 
     @staticmethod
     def _get_proto_name(protonum):
