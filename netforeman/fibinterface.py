@@ -24,6 +24,7 @@
 """Base classes for all FIB interfaces."""
 
 
+import abc
 import netaddr
 
 from netforeman import moduleapi
@@ -117,8 +118,13 @@ class FIBInterface:
         raise NotImplementedError()
 
 
-class FIBModuleAPI(moduleapi.ModuleAPI):
-    """FIB module API."""
+class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
+    """Base class for FIB module APIs.
+
+    This class cannot be imported directly; it must be subclassed by a
+    specific FIB module, and the _create_fib method overriden for that FIB.
+
+    """
 
     default_metric = 1024
     proto = 'static'
@@ -132,12 +138,15 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         """
         super().__init__(conf)
 
-        # TODO: Implement _create_fib(). Depends on which FIB we are.
-        # Probably best done at the subclass level (abstractmethod). That
-        # means this should be an abstract class.
         self.fib = self._create_fib()
 
         self.conf = conf
+
+    @staticmethod
+    @abc.abstractmethod
+    def _create_fib():
+        """Create a FIB instance."""
+        raise NotImplementedError()
 
     def run(self, dispatch):
         """Run any configured verifications and actions in this module."""

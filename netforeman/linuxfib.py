@@ -360,11 +360,11 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         return pyroute2.netlink.rtnl.rt_proto[protonum]
 
 
-FIBInterface = LinuxFIBInterface
-
 
 class LinuxFIBModuleAPI(fibinterface.FIBModuleAPI):
-    def _create_fib(self):
+    """Linux FIB module API."""
+    @staticmethod
+    def _create_fib():
         """Create a FIB instance."""
         return LinuxFIBInterface()
 
