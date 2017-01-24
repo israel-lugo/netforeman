@@ -24,7 +24,6 @@
 """Base classes for all FIB interfaces."""
 
 
-import logging
 import netaddr
 
 from netforeman import moduleapi
