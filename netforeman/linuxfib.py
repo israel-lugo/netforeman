@@ -262,9 +262,9 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         # as separate, unrelated routes, which happen to have the same dst.
         nh_msgs = rtnl_msg.get_attr('RTA_MULTIPATH')
         if nh_msgs is not None:
-            nexthops = [self._nexthop_from_mpath_msg(msg) for msg in nh_msgs]
+            nexthops = [self._nexthop_from_mpath_msg(msg, True) for msg in nh_msgs]
         else:
-            nexthops = [self._nexthop_from_rtmsg(rtnl_msg)]
+            nexthops = [self._nexthop_from_rtmsg(rtnl_msg, False)]
 
         # XXX: This seems to not exist on IPv4, will be None when family == AF_INET
         metric = rtnl_msg.get_attr('RTA_PRIORITY')
@@ -275,26 +275,18 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
 
         return route.Route(dest, destlen, nexthops, metric, proto, rt_type)
 
-    def _nexthop_from_mpath_msg(self, msg):
-        """Create a NextHop from an rtnetlink multipath message."""
+    def _nexthop_from_rtmsg(self, msg, mpath_fragment):
+        """Create a NextHop from an rtnetlink message.
 
+        mpath_fragment should be a boolean indicating whether msg is an
+        RTA_MULTIPATH fragment or a full message. The parsing is done
+        differently.
+
+        """
         gw_str = msg.get_attr('RTA_GATEWAY')
         gw = netaddr.IPAddress(gw_str) if gw_str is not None else None
 
-        oif_idx = msg['oif']
-        ifname = self._get_ifname(oif_idx)
-
-        nh_type = self._guess_nh_type(gw)
-
-        return route.NextHop(gw, ifname, nh_type)
-
-    def _nexthop_from_rtmsg(self, msg):
-        """Create a NextHop from an rtnetlink message."""
-
-        gw_str = msg.get_attr('RTA_GATEWAY')
-        gw = netaddr.IPAddress(gw_str) if gw_str is not None else None
-
-        oif_idx = msg.get_attr('RTA_OIF')
+        oif_idx = msg['oif'] if mpath_fragment else msg.get_attr('RTA_OIF')
         ifname = self._get_ifname(oif_idx) if oif_idx is not None else None
 
         nh_type = self._guess_nh_type(gw)
