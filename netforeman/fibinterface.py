@@ -188,7 +188,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
 
         nexthops_any = [netaddr.IPAddress(nh) for nh in nexthops_any]
 
-        if non_null and not nexthops_any:
+        if nexthops_any and not non_null:
             self.logger.info("route to %s has required nexthops, forcing non_null", str(dest))
             non_null = True
 
