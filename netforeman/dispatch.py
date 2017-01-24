@@ -89,7 +89,7 @@ class Dispatch:
 
         try:
             api = self.config.modules_by_name[module_name].api
-        except KeyError as e:
+        except KeyError:
             raise config.ParseError("no such module '{:s}' in action definition".format(module_name))
 
         if relative_action not in api.actions:
