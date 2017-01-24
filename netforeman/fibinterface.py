@@ -188,6 +188,10 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
 
         nexthops_any = [netaddr.IPAddress(nh) for nh in nexthops_any]
 
+        if non_null and not nexthops_any:
+            self.logger.info("route to %s has required nexthops, forcing non_null", str(dest))
+            non_null = True
+
         rm = route.RouteMatch(dest=dest)
 
         r = self.fib.get_route_to(rm)
@@ -197,6 +201,14 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
             return False
 
         self.logger.debug("route found, via %s", self._nexthops_str(r.nexthops))
+
+        if non_null:
+            if r.is_null:
+                self._route_check_failed(dispatch, dest, on_error,
+                        "{:s}, should be non-null".format(r.rt_type.name))
+                return False
+            else:
+                self.logger.debug("route to %s is non-null, as expected", str(dest))
 
         if nexthops_any:
             for nh in r.nexthops:
@@ -209,13 +221,6 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
                         ', '.join(str(ip) for ip in nexthops_any))
                 self._route_check_failed(dispatch, dest, on_error, error_reason)
                 return False
-
-        if non_null:
-            if r.is_null:
-                self._route_check_failed(dispatch, dest, on_error,
-                        "{:s}, should be non-null".format(r.rt_type.name))
-            else:
-                self.logger.debug("route to %s is non-null, as expected", str(dest))
 
         self.logger.info("route_check to %s check satisfied", dest)
 
