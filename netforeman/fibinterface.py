@@ -146,7 +146,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         for subconf in self.conf.get_list('route_checks', default=[]):
             self.route_check(subconf, dispatch)
 
-    def _route_check_failed(self, dispatch, dest, error_reason, on_error):
+    def _route_check_failed(self, dispatch, dest, on_error, error_reason):
         """Handle a failed route check.
 
         Logs a warning and executes the actions in on_error, which should
@@ -185,7 +185,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         r = self.fib.get_route_to(rm)
 
         if r is None:
-            self._route_check_failed(dispatch, dest, "not found", on_error)
+            self._route_check_failed(dispatch, dest, on_error, "not found")
             return False
 
         self.logger.debug("route found, via %s", self._nexthops_str(r.nexthops))
@@ -199,7 +199,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
                 error_reason = "via {:s}, not in [{:s}]".format(
                         self._nexthops_str(r.nexthops),
                         ', '.join(str(ip) for ip in nexthops_any))
-                self._route_check_failed(dispatch, dest, error_reason, on_error)
+                self._route_check_failed(dispatch, dest, on_error, error_reason)
                 return False
 
         self.logger.info("route_check to %s check satisfied", dest)
