@@ -212,7 +212,8 @@ class RoutingTableModuleAPI(netforeman.moduleapi.ModuleAPI):
         """Get the routing table module's actions."""
         return {'add_route': self.add_route}
 
-    def _load_fib_module(self, name):
+    @staticmethod
+    def _load_fib_module(name):
         """Load a FIB module."""
         return importlib.import_module("{:s}.{:s}".format(__package__, name))
 
