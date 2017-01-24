@@ -67,6 +67,8 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
         self.username = self._get_conf(conf, 'username', False)
         self.password = self._get_conf(conf, 'password', False)
 
+        self.logger.debug("server %s, target %s", self.server, self.to_address)
+
     @property
     def actions(self):
         """Get the email module's actions."""
@@ -80,6 +82,7 @@ class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
         ActionContext.
 
         """
+        self.logger.info("sending email, triggered by %s", context.calling_module)
 
         # TODO: Make this default subject configurable in the module args
         subject = conf.get_string('subject', default="Email from NetForeman")
