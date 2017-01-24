@@ -216,7 +216,8 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
     @property
     def actions(self):
         """Get the routing table module's actions."""
-        return {'add_route': self.add_route}
+        return {'add_route': self.add_route,
+                'replace_route': self.replace_route}
 
     def add_route(self, conf, context):
         """Add a route to the FIB.
@@ -225,16 +226,39 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
         ActionContext.
 
         """
+        r = self._get_route_action_route(conf)
+
+        self.logger.info("adding route to %s via %s", r.dest, self._nexthops_str(r.nexthops))
+        self.fib.add_route(r)
+
+    def replace_route(self, conf, context):
+        """Replace a route on the FIB, or add if non-existent.
+
+        If the route already exists, it is changed. Otherwise, it is
+        created. Receives a pyhocon.config_tree.ConfigTree instance and an
+        ActionContext.
+
+        """
+        r = self._get_route_action_route(conf)
+
+        self.logger.info("replacing route to %s via %s", r.dest, self._nexthops_str(r.nexthops))
+        self.fib.replace_route(r)
+
+    def _get_route_action_route(self, conf):
+        """Get the route from a route action config.
+
+        This implements the common parts of add_route and replace_route. It
+        parses the action's pyhocon.config_tree.ConfigTree and returns a
+        route.Route, containing the desired route.
+
+        """
         dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
         nexthops = [
                 route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
                 for gw in conf.get_list('nexthops')
         ]
-        r = route.Route(dest, dest.prefixlen, nexthops,
+        return route.Route(dest, dest.prefixlen, nexthops,
                 str(self.default_metric), self.proto, route.RouteType.unicast)
-
-        self.logger.info("adding route to %s via %s", dest, self._nexthops_str(r.nexthops))
-        self.fib.add_route(r)
 
     @staticmethod
     def _nexthops_str(nexthops):
