@@ -1,7 +1,7 @@
 NetForeman
 ==========
 
-|license|
+|license| |CodacyBadge|
 
 Making sure your network is running smoothly.
 
@@ -103,6 +103,8 @@ along with NetForeman.  If not, see <http://www.gnu.org/licenses/>.
 
 .. |license| image:: https://img.shields.io/badge/license-GPLv3+-blue.svg?maxAge=2592000
    :target: LICENSE
+.. |CodacyBadge| image:: https://api.codacy.com/project/badge/Grade/17d405657c76425c8707265fb4360057
+   :target: https://www.codacy.com/app/israel-lugo/netforeman
 .. _netaddr: https://github.com/drkjam/netaddr
 .. _pyhocon: https://github.com/chimpler/pyhocon
 .. _pyroute2: https://github.com/svinota/pyroute2
