@@ -113,17 +113,23 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
             match = self._route_cmd("get", rm)[0]
 
         except fibinterface.FIBError as e:
-            if e.orig.code == errno.ENETUNREACH:
-                # route is unreachable or blackhole; kernel complains, we
-                # have to resolve it ourselves (see issue #5)
+            # Unreachable, blackhole or prohibited routes give an error on
+            # lookup; check if that's the case and resolve it ourselves.
+            # Issue #5. Testing returned ENETUNREACH on some systems,
+            # EHOSTUNREACH on others. See:
+            #   man ip-route(8)
+            #   linux/net/ipv4/fib_semantics.c:fib_props
+            #   linux/net/ipv6/fib6_rules.c:fib6_rule_action() ?
+            if e.orig.code in (errno.ENETUNREACH, errno.EHOSTUNREACH,
+                               errno.EACCES, errno.EINVAL):
+                # EINVAL could actually mean some other weird error
                 routes = self.matching_routes_to(rm.dest)
                 if not routes:
-                    # unreachable route existed, but no route exists now
-                    # (protect from race condition)
+                    # no route exists now (race condition, or other error)
                     raise fibinterface.FIBError("no route exists for %s"
                             % rm.dest)
 
-                # return most specific route (should be the blackhole one)
+                # return most specific route (should be the null one)
                 return routes[0]
             else:
                 # unknown error, re-raise
