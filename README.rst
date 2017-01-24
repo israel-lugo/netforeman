@@ -1,6 +1,10 @@
 NetForeman
 ==========
 
+.. image:: https://api.codacy.com/project/badge/Grade/17d405657c76425c8707265fb4360057
+   :alt: Codacy Badge
+   :target: https://www.codacy.com/app/israel-lugo/netforeman?utm_source=github.com&utm_medium=referral&utm_content=israel-lugo/netforeman&utm_campaign=badger
+
 |license|
 
 Making sure your network is running smoothly.
