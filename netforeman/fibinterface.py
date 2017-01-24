@@ -202,6 +202,13 @@ class FIBModuleAPI(moduleapi.ModuleAPI):
                 self._route_check_failed(dispatch, dest, on_error, error_reason)
                 return False
 
+        if non_null:
+            if r.is_null:
+                self._route_check_failed(dispatch, dest, on_error,
+                        "{:s}, should be non-null".format(r.rt_type.name))
+            else:
+                self.logger.debug("route to %s is non-null, as expected", str(dest))
+
         self.logger.info("route_check to %s check satisfied", dest)
 
         return True

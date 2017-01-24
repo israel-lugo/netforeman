@@ -129,6 +129,8 @@ class Route:
 
         self.is_default = (destlen == 0)
         self.multipath = (len(nexthops) > 1)
+        self.is_null = (self.rt_type
+                        in (RouteType.blackhole, RouteType.unreachable, RouteType.prohibit))
 
     def __eq__(self, other):
         """self == other"""
