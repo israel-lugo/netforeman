@@ -85,7 +85,8 @@ class Dispatch:
         if not module_name:
             module_name = context.calling_module
 
-        self.logger.debug("executing module %s's action %s", module_name, relative_action)
+        self.logger.debug("executing action %s.%s, triggered by %s", module_name,
+                relative_action, context.calling_module)
 
         try:
             api = self.config.modules_by_name[module_name].api
