@@ -98,7 +98,7 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         This method should be overriden by modules with their own
         independent behavior, e.g. modules that perform user-configured
         verifications or actions by themselves. Modules which only provide
-        callable actions (e.g. sendemail) need not override this.
+        callable actions (e.g. sendmail) need not override this.
 
         """
         pass
