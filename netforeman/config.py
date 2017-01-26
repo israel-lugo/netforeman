@@ -103,14 +103,14 @@ class Configurator:
         self.filename = filename
 
         self.logger = logging.getLogger('netforeman.config')
-        self.logger.debug("parsing configuration file '%s'", filename)
+        self.logger.debug("reading configuration file '%s'", filename)
 
         try:
             self.conf = pyhocon.ConfigFactory.parse_file(filename)
         except pyhocon.exceptions.ConfigException as e:
             raise ParseError(str(e))
 
-        self.logger.debug("finished parsing configuration file")
+        self.logger.debug("finished reading configuration file")
 
     def load_modules(self):
         """Load configured modules.
