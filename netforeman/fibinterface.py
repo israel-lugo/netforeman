@@ -32,6 +32,15 @@ from netforeman import route
 from netforeman import config
 
 
+
+def _nexthops_str(nexthops):
+    """Return a string representation of a list of route.NextHop."""
+    if len(nexthops) == 1:
+        return str(nexthops[0].gw)
+    else:
+        return "[{:s}]".format(', '.join(str(nh.gw) for nh in nexthops))
+
+
 class FIBError(Exception):
     """Error from a FIB interface."""
 
@@ -118,6 +127,87 @@ class FIBInterface:
         raise NotImplementedError()
 
 
+class ActionAddReplaceRouteSettings(config.Settings):
+    """Settings for ActionAddRoute and ActionReplaceRoute."""
+
+    def __init__(self, dest, nexthops, metric=1024, proto='static',
+            rt_type=route.RouteType.unicast):
+        """Initialize an ActionAddReplaceRouteSettings instance.
+
+        dest should be a netaddr.IPNetwork. nexthops should be a list of
+        route.NextHop.
+
+        """
+        super().__init__()
+
+        if not nexthops:
+            raise config.ParseError("nexthops list must be non-empty")
+
+        self.route = route.Route(dest, dest.prefixlen, nexthops, str(metric),
+                                 proto, rt_type)
+
+    @classmethod
+    def from_pyhocon(cls, conf):
+        """Create ActionAddReplaceRouteSettings from a pyhocon ConfigTree.
+
+        Returns a newly created instance of ActionAddReplaceRouteSettings. Raises
+        config.ParseError in case of error.
+
+        """
+        dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
+        nexthops = [
+                route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
+                for gw in conf.get_list('nexthops')
+        ]
+
+        return cls(dest, nexthops)
+
+
+class ActionAddRoute(moduleapi.Action):
+    """Add route action.
+
+    Adds a route to the FIB.
+
+    """
+
+    _SettingsClass = ActionAddReplaceRouteSettings
+    """Settings class for this action."""
+
+    def execute(self, context):
+        """Execute the action.
+
+        Receives a moduleapi.ActionContext.
+
+        """
+        r = self.settings.route
+
+        self.logger.info("adding route to %s via %s", r.dest, _nexthops_str(r.nexthops))
+        self.module.fib.add_route(r)
+
+
+class ActionReplaceRoute(moduleapi.Action):
+    """Replace route action.
+
+    Replaces a route in the FIB. If the route already exists, it is
+    changed. Otherwise, it is added.
+
+    """
+
+    _SettingsClass = ActionAddReplaceRouteSettings
+    """Settings class for this action."""
+
+    def execute(self, context):
+        """Execute the action.
+
+        Receives a moduleapi.ActionContext.
+
+        """
+        r = self.settings.route
+
+        self.logger.info("replacing route to %s via %s", r.dest, _nexthops_str(r.nexthops))
+        self.module.fib.replace_route(r)
+
+
 class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
     """Base class for FIB module APIs.
 
@@ -125,9 +215,6 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
     specific FIB module, and the _create_fib method overriden for that FIB.
 
     """
-
-    default_metric = 1024
-    proto = 'static'
 
     def __init__(self, conf):
         """Initialize the FIB module.
@@ -200,7 +287,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
             self._route_check_failed(dispatch, dest, on_error, "not found")
             return False
 
-        self.logger.debug("route found, via %s", self._nexthops_str(r.nexthops))
+        self.logger.debug("route found, via %s", _nexthops_str(r.nexthops))
 
         if non_null:
             if r.is_null:
@@ -217,7 +304,7 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
                     break
             else:
                 error_reason = "via {:s}, not in [{:s}]".format(
-                        self._nexthops_str(r.nexthops),
+                        _nexthops_str(r.nexthops),
                         ', '.join(str(ip) for ip in nexthops_any))
                 self._route_check_failed(dispatch, dest, on_error, error_reason)
                 return False
@@ -229,58 +316,8 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
     @property
     def actions(self):
         """Get the routing table module's actions."""
-        return {'add_route': self.add_route,
-                'replace_route': self.replace_route}
-
-    def add_route(self, conf, context):
-        """Add a route to the FIB.
-
-        Receives a pyhocon.config_tree.ConfigTree instance and an
-        ActionContext.
-
-        """
-        r = self._get_route_action_route(conf)
-
-        self.logger.info("adding route to %s via %s", r.dest, self._nexthops_str(r.nexthops))
-        self.fib.add_route(r)
-
-    def replace_route(self, conf, context):
-        """Replace a route on the FIB, or add if non-existent.
-
-        If the route already exists, it is changed. Otherwise, it is
-        created. Receives a pyhocon.config_tree.ConfigTree instance and an
-        ActionContext.
-
-        """
-        r = self._get_route_action_route(conf)
-
-        self.logger.info("replacing route to %s via %s", r.dest, self._nexthops_str(r.nexthops))
-        self.fib.replace_route(r)
-
-    def _get_route_action_route(self, conf):
-        """Get the route from a route action config.
-
-        This implements the common parts of add_route and replace_route. It
-        parses the action's pyhocon.config_tree.ConfigTree and returns a
-        route.Route, containing the desired route.
-
-        """
-        dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
-        nexthops = [
-                route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
-                for gw in conf.get_list('nexthops')
-        ]
-        return route.Route(dest, dest.prefixlen, nexthops,
-                str(self.default_metric), self.proto, route.RouteType.unicast)
-
-    @staticmethod
-    def _nexthops_str(nexthops):
-        """Return a string representation of a list of nexthops."""
-        if len(nexthops) == 1:
-            return str(nexthops[0].gw)
-        else:
-            return "[{:s}]".format(', '.join(str(nh.gw) for nh in nexthops))
-
+        return {'add_route': ActionAddRoute,
+                'replace_route': ActionReplaceRoute}
 
 
 API = FIBModuleAPI
