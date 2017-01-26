@@ -154,7 +154,7 @@ class ActionAddReplaceRouteSettings(config.Settings):
         config.ParseError in case of error.
 
         """
-        dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
+        dest = netaddr.IPNetwork(cls._get_conf(conf, 'dest'))
         nexthops = [
                 route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
                 for gw in conf.get_list('nexthops')

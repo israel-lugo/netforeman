@@ -79,12 +79,12 @@ class EmailSettings(config.Settings):
         config.ParseError in case of error.
 
         """
-        from_address = self._get_conf(conf, 'from_address')
-        to_address = self._get_conf(conf, 'to_address')
-        server = self._get_conf(conf, 'server')
-        port = self._get_conf(conf, 'port')
-        username = self._get_conf(conf, 'username', False)
-        password = self._get_conf(conf, 'password', False)
+        from_address = cls._get_conf(conf, 'from_address')
+        to_address = cls._get_conf(conf, 'to_address')
+        server = cls._get_conf(conf, 'server')
+        port = cls._get_conf(conf, 'port')
+        username = cls._get_conf(conf, 'username', False)
+        password = cls._get_conf(conf, 'password', False)
 
         return cls(from_address, to_address, server, port, username, password)
 
