@@ -23,6 +23,7 @@
 
 """Configuration parser."""
 
+import abc
 import logging
 import importlib
 
@@ -36,6 +37,47 @@ class ParseError(Exception):
 
     def __str__(self):
         return self.message
+
+
+class Settings(metaclass=abc.ABCMeta):
+    """Base class for the settings of all NetForeman modules.
+
+    Subclasses MUST override the __init__ method with appropriate
+    arguments. They SHOULD, however, call the original __init__ for common
+    initialization. Subclasses MUST also override classmethod from_pyhocon.
+
+    """
+
+    @abc.abstractmethod
+    def __init__(self):
+        """Initialize a settings instance.
+
+        Subclasses SHOULD call the original method for initializing common
+        attributes such as logging.
+
+        """
+        self.logger = logging.getLogger('netforeman.settings')
+
+    @classmethod
+    @abc.abstractmethod
+    def from_pyhocon(cls, conf):
+        """Create an instance of settings from a pyhocon ConfigTree."""
+        raise NotImplementedError
+
+    @staticmethod
+    def _get_conf(conf, name, required=True):
+        """Get a value from a pyhocon.config_tree.ConfigTree.
+
+        If the value is missing and required is True, raises a ParseError
+        exception. If the value is missing and required is False, returns
+        None.
+
+        """
+        value = conf.get(name, None)
+        if value is None and required:
+            raise ParseError("missing required argument '{:s}'".format(name))
+
+        return value
 
 
 class ModuleInfo:

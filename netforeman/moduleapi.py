@@ -103,18 +103,4 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         """
         pass
 
-    @staticmethod
-    def _get_conf(conf, name, required=True):
-        """Get a value from a pyhocon.config_tree.ConfigTree.
-
-        If the value is missing and required is True, raises a KeyError
-        exception. If the value is missing and required is False, returns
-        None.
-
-        """
-        value = conf.get(name, None)
-        if value is None and required:
-            raise ParseError("missing required argument '{:s}'".format(name))
-
-        return value
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :
