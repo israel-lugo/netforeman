@@ -30,6 +30,8 @@ import importlib
 import pyhocon
 
 
+# TODO: Rename to ConfigError. Configuration could be generated, it isn't
+# necessarily parsed from a file.
 class ParseError(Exception):
     """Error while parsing configuration."""
     def __init__(self, message):
