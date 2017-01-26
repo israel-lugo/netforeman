@@ -42,6 +42,53 @@ class ActionContext:
         self.message = message
 
 
+class Action(metaclass=abc.ABCMeta):
+    """Base class for actions.
+
+    Subclasses MUST define a class attribute _SettingsClass, which should
+    be the appropriate subclass of config.Settings for that Action
+    subclass. This will be used by settings_from_pyhocon.
+
+    """
+
+    def __init__(self, module, settings):
+        """Initialize an Action.
+
+        module should be a loaded instance of the module to which this
+        action belongs. settings should be an instance of the appropriate
+        Settings subclass for this action.
+
+        Subclasses SHOULD call the original method, for common
+        initialization.
+
+        """
+        self.module = module
+        self.settings = settings
+
+    @abc.abstractmethod
+    def execute(self, context):
+        """Execute the action.
+
+        Receives an ActionContext.
+
+        """
+        pass
+
+    @classmethod
+    def settings_from_pyhocon(cls, conf):
+        """Get settings for this action.
+
+        Receives a pyhocon.config_tree.ConfigTree and returns an
+        appropriate subclass of config.Settings. Raises ParseError in case
+        of error.
+
+        Subclasses of Action MUST appropriately define the class attribute
+        _SettingsClass.
+
+        """
+        return cls._SettingsClass.from_pyhocon(conf)
+
+
 class ModuleAPI(metaclass=abc.ABCMeta):
     """Base class for the API of all NetForeman modules.
 
