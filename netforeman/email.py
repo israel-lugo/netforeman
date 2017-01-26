@@ -105,6 +105,8 @@ class ActionSendEmailSettings(config.Settings):
         will be used.
 
         """
+        super().__init__()
+
         if text is None:
             text = ("This is an automated email, sent from NetForeman.\n"
                     "\n"
