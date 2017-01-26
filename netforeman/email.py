@@ -120,7 +120,7 @@ class ActionSendEmailSettings(config.Settings):
         try:
             text.format(module="", message="")
         except (ValueError, LookupError) as e:
-            raise config.ParseError("invalid value for text: {!s}", e)
+            raise config.ParseError("invalid value for text: {!s}".format(e))
 
         self.text = text
         self.subject = subject
