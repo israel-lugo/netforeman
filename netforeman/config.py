@@ -176,16 +176,21 @@ class Configurator:
 
         """
         module = importlib.import_module("{:s}.{:s}".format(__package__, name))
-        api = module.API(self.get_module_conf(module))
+
+        config_tree = self.get_module_conf(module)
+        settings = module.API.settings_from_pyhocon(config_tree)
+
+        api = module.API(settings)
+
         modinfo = ModuleInfo(name, module, api)
 
         return modinfo
 
     def get_module_conf(self, module):
-        """Get the a module's config tree.
+        """Get a module's pyhocon ConfigTree.
 
-        Returns a config tree of arguments. Raises ParseError if the tree
-        is missing.
+        Returns a pyhocon config tree of arguments. Raises ParseError if
+        the tree is missing.
 
         """
         # use the module's relative name

@@ -93,6 +93,9 @@ class Dispatch:
         except KeyError:
             raise config.ParseError("no such module '{:s}' in action definition".format(module_name))
 
+        # TODO: Actions are classes now. Instantiate the action, give it
+        # the API (because it may need it), and call its execute method.
+
         if relative_action not in api.actions:
             raise config.ParseError("action '{:s}' not defined in module '{:s}'".format(action, module_name))
 

@@ -97,7 +97,7 @@ class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def __init__(self, conf):
+    def __init__(self, settings):
         """Initialize the module API.
 
         Receives a pyhocon.config_tree.ConfigTree object, containing the
