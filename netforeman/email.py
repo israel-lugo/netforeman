@@ -167,6 +167,9 @@ class ActionSendEmail(netforeman.moduleapi.Action):
 class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
     """Email module API."""
 
+    _SettingsClass = EmailSettings
+    """Settings class for this API."""
+
     def __init__(self, settings):
         """Initialize the email module.
 

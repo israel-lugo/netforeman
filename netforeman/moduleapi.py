@@ -26,7 +26,7 @@
 import logging
 import abc
 
-from netforeman.config import ParseError
+from netforeman import config
 
 
 class ActionContext:
@@ -42,12 +42,16 @@ class ActionContext:
         self.message = message
 
 
-class Action(metaclass=abc.ABCMeta):
+class ActionSettings(config.Settings, metaclass=abc.ABCMeta):
+    """Base class for action settings."""
+
+
+class Action(config.Configurable, metaclass=abc.ABCMeta):
     """Base class for actions.
 
     Subclasses MUST define a class attribute _SettingsClass, which should
-    be the appropriate subclass of config.Settings for that Action
-    subclass. This will be used by settings_from_pyhocon.
+    be the appropriate subclass of config.Settings for that action. This
+    will be used by config.Configurable.settings_from_pyhocon.
 
     """
 
@@ -74,26 +78,16 @@ class Action(metaclass=abc.ABCMeta):
         """
         pass
 
-    @classmethod
-    def settings_from_pyhocon(cls, conf):
-        """Get settings for this action.
 
-        Receives a pyhocon.config_tree.ConfigTree and returns an
-        appropriate subclass of config.Settings. Raises ParseError in case
-        of error.
-
-        Subclasses of Action MUST appropriately define the class attribute
-        _SettingsClass.
-
-        """
-        return cls._SettingsClass.from_pyhocon(conf)
-
-
-class ModuleAPI(metaclass=abc.ABCMeta):
+class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
     """Base class for the API of all NetForeman modules.
 
     Modules must override a set of abstract methods and properties. Also,
     they may provide callbacks, known as actions.
+
+    Subclasses MUST define a class attribute _SettingsClass, which should
+    be the appropriate subclass of config.Settings for that module. This
+    will be used by config.Configurable.settings_from_pyhocon.
 
     The actions must be available in the actions property, in the form of a
     dictionary of name: function. The function is to receive 2 arguments:

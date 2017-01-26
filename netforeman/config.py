@@ -41,6 +41,29 @@ class ParseError(Exception):
         return self.message
 
 
+class Configurable:
+    """Mix-in class (trait) for all configurable classes.
+
+    Descendants of Configurable gain a classmethod settings_from_pyhocon,
+    which receives a pyhocon ConfigTree and returns an instance of the
+    appropriate Settings subclass.
+
+    Descendants MUST define a class attribute _SettingsClass, which will be
+    used by settings_from_pyhocon to determine which Settings subclass to
+    create.
+
+    """
+    @classmethod
+    def settings_from_pyhocon(cls, conf):
+        """Get settings for this class.
+
+        Receives a pyhocon.config_tree.ConfigTree and returns an
+        appropriate subclass of config.Settings, as per cls._SettingsClass.
+
+        """
+        return cls._SettingsClass.from_pyhocon(conf)
+
+
 class Settings(metaclass=abc.ABCMeta):
     """Base class for the settings of all NetForeman modules.
 
