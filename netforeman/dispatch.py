@@ -65,24 +65,34 @@ class Dispatch:
 
         return not errors
 
-    def _resolve_action(self, action_name, calling_module):
+    def _resolve_action(self, action_name):
         """Resolve an action by name.
 
-        Receives an action's name, possibly including a module (e.g.
-        "email.sendmail"), and the name of the calling module (for the case
-        when the name does not include the module).
+        Receives an action's name, in the format module.action (e.g.
+        "email.sendmail"). Relative action names are not allowed.
 
-        Returns the tuple (module_api, action_class, abs_name). That is,
-        respectively, the module API that contains the action, the action
-        class for instantiating, and the absolute name of the action, for
-        logging (module.action).
+        Returns the tuple (module_api, action_class). That is, the module
+        API that contains the action and the action class for
+        instantiating.
 
         Raises config.ParseError in case of error (e.g. action not found).
 
         """
         module_name, _, action_basename = action_name.rpartition('.')
+
+        # We don't allow relative names; it would be too complicated for
+        # cases like linuxfib, which inherits almost everything from
+        # fibinterface but is actually a different module. At configure
+        # time, only dispatch or configurator know the current module.
+        # Would require special casing the FIB settings and subsettings in
+        # linuxfib just for this, or having to pass around the module name
+        # in *every* configurable object. Not worth it.
+
         if not module_name:
-            module_name = calling_module
+            raise config.ParseError("missing module name in action definition {:s}".format(action_name))
+
+        if not action_basename:
+            raise config.ParseError("missing action name in action definition {:s}".format(action_name))
 
         try:
             api = self.config.modules_by_name[module_name].api
@@ -92,10 +102,9 @@ class Dispatch:
         if action_basename not in api.actions:
             raise config.ParseError("action '{:s}' not defined in module '{:s}'".format(action_name, module_name))
 
-        abs_name = "{:s}.{:s}".format(module_name, action_basename)
         action_class = api.actions[action_basename]
 
-        return (api, action_class, abs_name)
+        return (api, action_class)
 
     def execute_action(self, conf, context):
         """Execute an action.
@@ -111,13 +120,11 @@ class Dispatch:
 
         """
         action_name = conf.get_string('action')
-        calling_module = context.calling_module
 
-        api, action_class, abs_name = self._resolve_action(action_name,
-                calling_module)
+        api, action_class = self._resolve_action(action_name)
 
-        self.logger.debug("executing action %s, triggered by %s", abs_name,
-                calling_module)
+        self.logger.debug("executing action %s, triggered by %s", action_name,
+                context.calling_module)
 
         # TODO: Separate config parsing from executing the action.
 
