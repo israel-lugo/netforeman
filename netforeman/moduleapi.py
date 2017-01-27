@@ -32,8 +32,8 @@ from netforeman import config
 class ActionContext:
     """Context information for an action.
 
-    Useful for the dispatcher to resolve relative actions, and also for the
-    modules to pass a message to an action.
+    Useful to identify the caller of a certain action, and for the modules
+    to pass a message to an action.
 
     """
 
