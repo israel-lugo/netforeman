@@ -65,11 +65,11 @@ class Dispatch:
 
         return not errors
 
-    def execute_action(self, action_conf, context):
+    def execute_action(self, conf, context):
         """Execute an action.
 
-        action_conf is an instance of pyhocon.config_tree.ConfigTree. It
-        must contain an "action" key, which is the name of the action to
+        conf is an instance of pyhocon.config_tree.ConfigTree. It must
+        contain an "action" key, which is the name of the action to
         execute.
 
         If the action is a full dotted path, e.g. module.action, the action
@@ -78,28 +78,32 @@ class Dispatch:
         will be executed.
 
         """
-        action = action_conf.get_string('action')
+        action_name = conf.get_string('action')
 
-        module_name, _, relative_action = action.rpartition('.')
+        module_name, _, action_basename = action_name.rpartition('.')
 
         if not module_name:
             module_name = context.calling_module
 
         self.logger.debug("executing action %s.%s, triggered by %s", module_name,
-                relative_action, context.calling_module)
+                action_basename, context.calling_module)
 
         try:
             api = self.config.modules_by_name[module_name].api
         except KeyError:
             raise config.ParseError("no such module '{:s}' in action definition".format(module_name))
 
-        # TODO: Actions are classes now. Instantiate the action, give it
-        # the API (because it may need it), and call its execute method.
+        if action_basename not in api.actions:
+            raise config.ParseError("action '{:s}' not defined in module '{:s}'".format(action_name, module_name))
 
-        if relative_action not in api.actions:
-            raise config.ParseError("action '{:s}' not defined in module '{:s}'".format(action, module_name))
+        # TODO: Separate config parsing from executing the action. Create a
+        # common method to resolve the action and so on.
 
-        api.actions[relative_action](action_conf, context)
+        action_class = api.actions[action_basename]
+        settings = action_class.settings_from_pyhocon(conf)
+
+        action = action_class(api, settings)
+        action.execute(context)
 
 
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :
