@@ -181,7 +181,7 @@ class ActionAddRoute(moduleapi.Action):
         """
         r = self.settings.route
 
-        self.logger.info("adding route to %s via %s", r.dest, _nexthops_str(r.nexthops))
+        self.module.logger.info("adding route to %s via %s", r.dest, _nexthops_str(r.nexthops))
         self.module.fib.add_route(r)
 
 
@@ -204,7 +204,7 @@ class ActionReplaceRoute(moduleapi.Action):
         """
         r = self.settings.route
 
-        self.logger.info("replacing route to %s via %s", r.dest, _nexthops_str(r.nexthops))
+        self.module.logger.info("replacing route to %s via %s", r.dest, _nexthops_str(r.nexthops))
         self.module.fib.replace_route(r)
 
 
