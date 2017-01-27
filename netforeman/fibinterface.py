@@ -258,6 +258,8 @@ class FIBSettings(config.Settings):
 
     def __init__(self, route_checks=None):
         """Initialize a FIBSettings instance."""
+        super().__init__()
+
         self.route_checks = route_checks if route_checks is not None else []
 
     @classmethod
