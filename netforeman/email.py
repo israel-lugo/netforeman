@@ -129,8 +129,8 @@ class ActionSendEmailSettings(config.Settings):
     def from_pyhocon(cls, conf):
         """Create ActionSendEmailSettings from a pyhocon ConfigTree."""
 
-        subject = conf.get_string('subject', default=None)
-        text = conf.get_string('text', default=None)
+        subject = conf.get('subject', default=None)
+        text = conf.get('text', default=None)
 
         return cls(text, subject)
 
