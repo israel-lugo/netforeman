@@ -177,7 +177,11 @@ class Configurator:
         """
         module = importlib.import_module("{:s}.{:s}".format(__package__, name))
 
-        config_tree = self.get_module_conf(module)
+        if name not in self.conf:
+            raise ParseError("missing required section '{:s}'".format(module_name))
+
+        config_tree = self.conf.get_config(name)
+
         settings = module.API.settings_from_pyhocon(config_tree)
 
         api = module.API(settings)
@@ -186,21 +190,5 @@ class Configurator:
 
         return modinfo
 
-    def get_module_conf(self, module):
-        """Get a module's pyhocon ConfigTree.
-
-        Returns a pyhocon config tree of arguments. Raises ParseError if
-        the tree is missing.
-
-        """
-        # use the module's relative name
-        module_name = module.__name__.split('.')[-1]
-
-        if module_name not in self.conf:
-            raise ParseError("missing required section '{:s}'".format(module_name))
-
-        module_conf = self.conf.get_config(module_name)
-
-        return module_conf
 
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :
