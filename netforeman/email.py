@@ -28,8 +28,7 @@ import email.mime.text
 import email.utils
 
 from netforeman import version
-
-import netforeman.moduleapi
+from netforeman import moduleapi
 
 
 class _Email(email.mime.text.MIMEText):
@@ -48,7 +47,7 @@ class _Email(email.mime.text.MIMEText):
         self['User-Agent'] = 'NetForeman {:s}'.format(version.__version__)
 
 
-class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
+class EmailModuleAPI(moduleapi.ModuleAPI):
     """Email module API."""
 
     def __init__(self, conf):
