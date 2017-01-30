@@ -157,6 +157,7 @@ class Configurator:
 
             if name in self.modules_by_name:
                 self.logger.warning("ignoring duplicate entry for module '%s', already loaded", name)
+                continue
 
             try:
                 modinfo = self.load_module(name)
