@@ -29,8 +29,7 @@ import email.utils
 
 from netforeman import version
 from netforeman import config
-
-import netforeman.moduleapi
+from netforeman import moduleapi
 
 
 class _Email(email.mime.text.MIMEText):
@@ -72,7 +71,7 @@ class EmailSettings(config.Settings):
         self.password = password
 
     @classmethod
-    def from_pyhocon(cls, conf):
+    def from_pyhocon(cls, conf, configurator):
         """Create EmailSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of EmailSettings. Raises
@@ -89,10 +88,10 @@ class EmailSettings(config.Settings):
         return cls(from_address, to_address, server, port, username, password)
 
 
-class ActionSendEmailSettings(config.Settings):
+class ActionSendEmailSettings(moduleapi.ActionSettings):
     """ActionSendEmail settings."""
 
-    def __init__(self, text=None, subject=None):
+    def __init__(self, action_name, text=None, subject=None):
         """Initialize settings for ActionSendEmail.
 
         text will be formatted using str.format(). There are named
@@ -105,7 +104,11 @@ class ActionSendEmailSettings(config.Settings):
         will be used.
 
         """
-        super().__init__()
+        if action_name != "email.sendmail":
+            # should never happen if our caller uses Dispatch resolution
+            raise config.ParseError("action name '{!s}', should be email.sendmail".format(action_name))
+
+        super().__init__(action_name)
 
         if text is None:
             text = ("This is an automated email, sent from NetForeman.\n"
@@ -126,16 +129,17 @@ class ActionSendEmailSettings(config.Settings):
         self.subject = subject
 
     @classmethod
-    def from_pyhocon(cls, conf):
+    def from_pyhocon(cls, conf, configurator):
         """Create ActionSendEmailSettings from a pyhocon ConfigTree."""
 
+        action_name = cls._get_conf('action')
         subject = conf.get('subject', default=None)
         text = conf.get('text', default=None)
 
-        return cls(text, subject)
+        return cls(action_name, text, subject)
 
 
-class ActionSendEmail(netforeman.moduleapi.Action):
+class ActionSendEmail(moduleapi.Action):
     """Send email action."""
 
     _SettingsClass = ActionSendEmailSettings
@@ -164,7 +168,7 @@ class ActionSendEmail(netforeman.moduleapi.Action):
         sender.quit()
 
 
-class EmailModuleAPI(netforeman.moduleapi.ModuleAPI):
+class EmailModuleAPI(moduleapi.ModuleAPI):
     """Email module API."""
 
     _SettingsClass = EmailSettings

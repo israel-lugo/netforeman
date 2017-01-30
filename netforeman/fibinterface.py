@@ -127,18 +127,25 @@ class FIBInterface:
         raise NotImplementedError()
 
 
-class ActionAddReplaceRouteSettings(config.Settings):
+class ActionAddReplaceRouteSettings(moduleapi.ActionSettings):
     """Settings for ActionAddRoute and ActionReplaceRoute."""
 
-    def __init__(self, dest, nexthops, metric=1024, proto='static',
-            rt_type=route.RouteType.unicast):
+    def __init__(self, action_name, dest, nexthops, metric=1024,
+            proto='static', rt_type=route.RouteType.unicast):
         """Initialize an ActionAddReplaceRouteSettings instance.
 
         dest should be a netaddr.IPNetwork. nexthops should be a list of
         route.NextHop.
 
         """
-        super().__init__()
+        # we're not checking the module name, since we may be used from
+        # multiple different types of FIB
+        if not (action_name.endswith(".add_route")
+                or action_name.endswith(".replace_route")):
+            # should never happen if our caller uses Dispatch resolution
+            raise config.ParseError("action name '{!s}', should be add_route or replace_route".format(action_name))
+
+        super().__init__(action_name)
 
         if not nexthops:
             raise config.ParseError("nexthops list must be non-empty")
@@ -147,20 +154,21 @@ class ActionAddReplaceRouteSettings(config.Settings):
                                  proto, rt_type)
 
     @classmethod
-    def from_pyhocon(cls, conf):
+    def from_pyhocon(cls, conf, configurator):
         """Create ActionAddReplaceRouteSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of ActionAddReplaceRouteSettings. Raises
         config.ParseError in case of error.
 
         """
+        action_name = cls._get_conf('action')
         dest = netaddr.IPNetwork(cls._get_conf(conf, 'dest'))
         nexthops = [
                 route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
                 for gw in conf.get_list('nexthops')
         ]
 
-        return cls(dest, nexthops)
+        return cls(action_name, dest, nexthops)
 
 
 class ActionAddRoute(moduleapi.Action):
@@ -230,7 +238,7 @@ class RouteCheckSettings(config.Settings):
         self.nexthops_any = nexthops_any if nexthops_any is not None else []
 
     @classmethod
-    def from_pyhocon(cls, conf):
+    def from_pyhocon(cls, conf, configurator):
         """Create RouteCheckSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of RouteCheckSettings. Raises
@@ -246,9 +254,10 @@ class RouteCheckSettings(config.Settings):
                 for nh in conf.get_list('nexthops_any', default=[])
         ]
 
-        # TODO: For each subconf in on_error, call some dispatch method
-        # that returns the appropriate Action*Settings object
-        on_error = cls._get_conf(conf, 'on_error')
+        on_error = [
+            configurator.configure_action(subconf)
+            for subconf in cls._get_conf(conf, 'on_error')
+        ]
 
         return cls(dest, on_error, non_null, nexthops_any)
 
@@ -263,7 +272,7 @@ class FIBSettings(config.Settings):
         self.route_checks = route_checks if route_checks is not None else []
 
     @classmethod
-    def from_pyhocon(cls, conf):
+    def from_pyhocon(cls, conf, configurator):
         """Create FIBSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of FIBSettings. Raises
@@ -271,7 +280,7 @@ class FIBSettings(config.Settings):
 
         """
         route_checks = [
-                RouteCheckSettings.from_pyhocon(subconf)
+                RouteCheckSettings.from_pyhocon(subconf, configurator)
                 for subconf in conf.get_list('route_checks', default=[])
         ]
 

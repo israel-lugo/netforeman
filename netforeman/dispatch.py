@@ -65,70 +65,16 @@ class Dispatch:
 
         return not errors
 
-    def _resolve_action(self, action_name):
-        """Resolve an action by name.
-
-        Receives an action's name, in the format module.action (e.g.
-        "email.sendmail"). Relative action names are not allowed.
-
-        Returns the tuple (module_api, action_class). That is, the module
-        API that contains the action and the action class for
-        instantiating.
-
-        Raises config.ParseError in case of error (e.g. action not found).
-
-        """
-        module_name, _, action_basename = action_name.rpartition('.')
-
-        # We don't allow relative names; it would be too complicated for
-        # cases like linuxfib, which inherits almost everything from
-        # fibinterface but is actually a different module. At configure
-        # time, only dispatch or configurator know the current module.
-        # Would require special casing the FIB settings and subsettings in
-        # linuxfib just for this, or having to pass around the module name
-        # in *every* configurable object. Not worth it.
-
-        if not module_name:
-            raise config.ParseError("missing module name in action definition {:s}".format(action_name))
-
-        if not action_basename:
-            raise config.ParseError("missing action name in action definition {:s}".format(action_name))
-
-        try:
-            api = self.config.modules_by_name[module_name].api
-        except KeyError:
-            raise config.ParseError("no such module '{:s}' in action definition".format(module_name))
-
-        if action_basename not in api.actions:
-            raise config.ParseError("action '{:s}' not defined in module '{:s}'".format(action_name, module_name))
-
-        action_class = api.actions[action_basename]
-
-        return (api, action_class)
-
-    def execute_action(self, conf, context):
+    def execute_action(self, settings, context):
         """Execute an action.
 
-        conf is an instance of pyhocon.config_tree.ConfigTree. It must
-        contain an "action" key, which is the name of the action to
-        execute.
-
-        If the action is a full dotted path, e.g. module.action, the action
-        from the corresponding module will be executed. If the action is a
-        relative path (without dots), the action from the calling module
-        will be executed.
+        Receives an instance of moduleapi.ActionSettings and an
+        ActionContext.
 
         """
-        action_name = conf.get_string('action')
+        action_name = settings.action_name
 
         api, action_class = self._resolve_action(action_name)
-
-        self.logger.debug("executing action %s, triggered by %s", action_name,
-                context.calling_module)
-
-        # TODO: Separate config parsing from executing the action.
-
-        settings = action_class.settings_from_pyhocon(conf)
 
         action = action_class(api, settings)
         action.execute(context)

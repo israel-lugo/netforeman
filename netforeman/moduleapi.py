@@ -43,7 +43,26 @@ class ActionContext:
 
 
 class ActionSettings(config.Settings, metaclass=abc.ABCMeta):
-    """Base class for action settings."""
+    """Base class for action settings.
+
+    ActionSettings are special in that they contain an additional instance
+    attribute, action_name. This MUST hold the full (absolute) name of the
+    action, for resolving at execution time.
+
+    """
+
+    @abc.abstractmethod
+    def __init__(self, action_name):
+        """Initialize an ActionSettings instance.
+
+        Subclasses MUST call the original method for common initialization
+        such as logging and storing the mandatory action_name. They SHOULD
+        also validate that self.action_name is appropriate for their
+        configuration domain.
+
+        """
+        super().__init__()
+        self.action_name = action_name
 
 
 class Action(config.Configurable, metaclass=abc.ABCMeta):
