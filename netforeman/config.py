@@ -190,7 +190,8 @@ class Configurator:
 
         return not errors
 
-    def _get_module_api(self, name):
+    @staticmethod
+    def _get_module_api(name):
         """Get the API class for the specified module.
 
         Dynamically loads the Python module and returns its subclass of
