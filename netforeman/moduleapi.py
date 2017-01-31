@@ -26,14 +26,14 @@
 import logging
 import abc
 
-from netforeman.config import ParseError
+from netforeman import config
 
 
 class ActionContext:
     """Context information for an action.
 
-    Useful for the dispatcher to resolve relative actions, and also for the
-    modules to pass a message to an action.
+    Useful to identify the caller of a certain action, and for the modules
+    to pass a message to an action.
 
     """
 
@@ -42,21 +42,88 @@ class ActionContext:
         self.message = message
 
 
-class ModuleAPI(metaclass=abc.ABCMeta):
+class ActionSettings(config.Settings, metaclass=abc.ABCMeta):
+    """Base class for action settings.
+
+    ActionSettings are special in that they contain an additional instance
+    attribute, action_name. This MUST hold the full (absolute) name of the
+    action, for resolving at execution time.
+
+    """
+
+    @abc.abstractmethod
+    def __init__(self, action_name):
+        """Initialize an ActionSettings instance.
+
+        Subclasses MUST call the original method for common initialization
+        such as logging and storing the mandatory action_name. They SHOULD
+        also validate that self.action_name is appropriate for their
+        configuration domain.
+
+        """
+        super().__init__()
+        self.action_name = action_name
+
+
+class Action(config.Configurable, metaclass=abc.ABCMeta):
+    """Base class for actions.
+
+    Subclasses MUST define a class attribute _SettingsClass, which should
+    be the appropriate subclass of config.Settings for that action. This
+    will be used by config.Configurable.settings_from_pyhocon.
+
+    """
+
+    def __init__(self, module, settings):
+        """Initialize an Action.
+
+        module should be a loaded instance of the module to which this
+        action belongs. settings should be an instance of the appropriate
+        Settings subclass for this action.
+
+        Subclasses SHOULD call the original method, for common
+        initialization.
+
+        """
+        self.module = module
+        self.settings = settings
+
+    @abc.abstractmethod
+    def execute(self, context):
+        """Execute the action.
+
+        Receives an ActionContext.
+
+        """
+        pass
+
+
+class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
     """Base class for the API of all NetForeman modules.
 
     Modules must override a set of abstract methods and properties. Also,
     they may provide callbacks, known as actions.
 
-    The actions must be available in the actions property, in the form of a
-    dictionary of name: function. The function is to receive 2 arguments:
-    conf (an instance of pyhocon.config_tree.ConfigTree) and context (an
-    ActionContext).
+    Subclasses MUST define the following class attributes:
+
+      * _SettingsClass
+
+      The appropriate subclass of config.Settings for the API. This will be
+      used by config.Configurable.settings_from_pyhocon.
+
+      * actions
+
+      A dictionary mapping the (relative) action names of the API to their
+      respective moduleapi.Action subclasses. This will be used by
+      config.resolve_actions.
 
     """
 
+    actions = {}
+    """Actions for this API, by name."""
+
     @abc.abstractmethod
-    def __init__(self, conf):
+    def __init__(self, settings):
         """Initialize the module API.
 
         Receives a pyhocon.config_tree.ConfigTree object, containing the
@@ -81,12 +148,6 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         """
         return self.__module__.rpartition('.')[2]
 
-    @property
-    @abc.abstractmethod
-    def actions(self):
-        """Get the module's actions."""
-        return {}
-
     # This method need not be overriden if the module doesn't do anything
     # by itself (e.g. it only exists to provide callable actions).
     def run(self, dispatch):
@@ -103,18 +164,4 @@ class ModuleAPI(metaclass=abc.ABCMeta):
         """
         pass
 
-    @staticmethod
-    def _get_conf(conf, name, required=True):
-        """Get a value from a pyhocon.config_tree.ConfigTree.
-
-        If the value is missing and required is True, raises a KeyError
-        exception. If the value is missing and required is False, returns
-        None.
-
-        """
-        value = conf.get(name, None)
-        if value is None and required:
-            raise ParseError("missing required argument '{:s}'".format(name))
-
-        return value
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

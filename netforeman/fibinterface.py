@@ -32,6 +32,15 @@ from netforeman import route
 from netforeman import config
 
 
+
+def _nexthops_str(nexthops):
+    """Return a string representation of a list of route.NextHop."""
+    if len(nexthops) == 1:
+        return str(nexthops[0].gw)
+    else:
+        return "[{:s}]".format(', '.join(str(nh.gw) for nh in nexthops))
+
+
 class FIBError(Exception):
     """Error from a FIB interface."""
 
@@ -118,6 +127,166 @@ class FIBInterface:
         raise NotImplementedError()
 
 
+class ActionAddReplaceRouteSettings(moduleapi.ActionSettings):
+    """Settings for ActionAddRoute and ActionReplaceRoute."""
+
+    def __init__(self, action_name, dest, nexthops, metric=1024,
+            proto='static', rt_type=route.RouteType.unicast):
+        """Initialize an ActionAddReplaceRouteSettings instance.
+
+        dest should be a netaddr.IPNetwork. nexthops should be a list of
+        route.NextHop.
+
+        """
+        # we're not checking the module name, since we may be used from
+        # multiple different types of FIB
+        if not (action_name.endswith(".add_route")
+                or action_name.endswith(".replace_route")):
+            # should never happen if our caller uses Dispatch resolution
+            raise config.ParseError("action name '{!s}', should be add_route or replace_route".format(action_name))
+
+        super().__init__(action_name)
+
+        if not nexthops:
+            raise config.ParseError("nexthops list must be non-empty")
+
+        self.route = route.Route(dest, dest.prefixlen, nexthops, str(metric),
+                                 proto, rt_type)
+
+    @classmethod
+    def from_pyhocon(cls, conf, configurator):
+        """Create ActionAddReplaceRouteSettings from a pyhocon ConfigTree.
+
+        Returns a newly created instance of ActionAddReplaceRouteSettings. Raises
+        config.ParseError in case of error.
+
+        """
+        action_name = cls._get_conf(conf, 'action')
+        dest = netaddr.IPNetwork(cls._get_conf(conf, 'dest'))
+        nexthops = [
+                route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
+                for gw in conf.get_list('nexthops')
+        ]
+
+        return cls(action_name, dest, nexthops)
+
+
+class ActionAddRoute(moduleapi.Action):
+    """Add route action.
+
+    Adds a route to the FIB.
+
+    """
+
+    _SettingsClass = ActionAddReplaceRouteSettings
+    """Settings class for this action."""
+
+    def execute(self, context):
+        """Execute the action.
+
+        Receives a moduleapi.ActionContext.
+
+        """
+        r = self.settings.route
+
+        self.module.logger.info("adding route to %s via %s", r.dest, _nexthops_str(r.nexthops))
+        self.module.fib.add_route(r)
+
+
+class ActionReplaceRoute(moduleapi.Action):
+    """Replace route action.
+
+    Replaces a route in the FIB. If the route already exists, it is
+    changed. Otherwise, it is added.
+
+    """
+
+    _SettingsClass = ActionAddReplaceRouteSettings
+    """Settings class for this action."""
+
+    def execute(self, context):
+        """Execute the action.
+
+        Receives a moduleapi.ActionContext.
+
+        """
+        r = self.settings.route
+
+        self.module.logger.info("replacing route to %s via %s", r.dest, _nexthops_str(r.nexthops))
+        self.module.fib.replace_route(r)
+
+
+class RouteCheckSettings(config.Settings):
+    """RouteCheck settings."""
+
+    def __init__(self, dest, on_error, non_null=False, nexthops_any=None):
+        """Initialize a RouteCheckSettings instance.
+
+        dest should be netaddr.IPNetwork. on_error should be a list of
+        action settings to execute in case of error.
+
+        """
+        super().__init__()
+
+        if nexthops_any and not non_null:
+            self.logger.info("route to %s has required nexthops, forcing non_null", dest)
+            non_null = True
+
+        self.rm = route.RouteMatch(dest=dest)
+        self.on_error = on_error
+        self.non_null = non_null
+        self.nexthops_any = nexthops_any if nexthops_any is not None else []
+
+    @classmethod
+    def from_pyhocon(cls, conf, configurator):
+        """Create RouteCheckSettings from a pyhocon ConfigTree.
+
+        Returns a newly created instance of RouteCheckSettings. Raises
+        config.ParseError in case of error.
+
+        """
+        dest = netaddr.IPNetwork(cls._get_conf(conf, 'dest'))
+
+        non_null = conf.get_bool('non_null', default=False)
+
+        nexthops_any = [
+                netaddr.IPAddress(nh)
+                for nh in conf.get_list('nexthops_any', default=[])
+        ]
+
+        on_error = [
+            configurator.configure_action(subconf)
+            for subconf in cls._get_conf(conf, 'on_error')
+        ]
+
+        return cls(dest, on_error, non_null, nexthops_any)
+
+
+class FIBSettings(config.Settings):
+    """FIB module settings."""
+
+    def __init__(self, route_checks=None):
+        """Initialize a FIBSettings instance."""
+        super().__init__()
+
+        self.route_checks = route_checks if route_checks is not None else []
+
+    @classmethod
+    def from_pyhocon(cls, conf, configurator):
+        """Create FIBSettings from a pyhocon ConfigTree.
+
+        Returns a newly created instance of FIBSettings. Raises
+        config.ParseError in case of error.
+
+        """
+        route_checks = [
+                RouteCheckSettings.from_pyhocon(subconf, configurator)
+                for subconf in conf.get_list('route_checks', default=[])
+        ]
+
+        return cls(route_checks)
+
+
 class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
     """Base class for FIB module APIs.
 
@@ -126,21 +295,22 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
 
     """
 
-    default_metric = 1024
-    proto = 'static'
+    _SettingsClass = FIBSettings
+    """Settings class for this API."""
 
-    def __init__(self, conf):
+    actions = {'add_route': ActionAddRoute, 'replace_route': ActionReplaceRoute}
+    """Actions for this API, by name."""
+
+    def __init__(self, settings):
         """Initialize the FIB module.
 
-        Receives a pyhocon.config_tree.ConfigTree object, containing the
-        module's config tree.
+        Receives a FIBSettings object, containing the module's settings.
 
         """
-        super().__init__(conf)
+        super().__init__(settings)
 
+        self.settings = settings
         self.fib = self._create_fib()
-
-        self.conf = conf
 
     @staticmethod
     @abc.abstractmethod
@@ -151,136 +321,68 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
     def run(self, dispatch):
         """Run any configured verifications and actions in this module."""
 
-        for subconf in self.conf.get_list('route_checks', default=[]):
-            self.route_check(subconf, dispatch)
+        for route_check in self.settings.route_checks:
+            self.do_route_check(route_check, dispatch)
 
-    def _route_check_failed(self, dispatch, dest, on_error, error_reason):
+    def _route_check_failed(self, dispatch, route_check, error_reason):
         """Handle a failed route check.
 
-        Logs a warning and executes the actions in on_error, which should
-        be a list of pyhocon.config_tree.ConfigTree.
+        Logs a warning and executes the actions in route_check's on_error.
 
         """
+        dest = route_check.rm.dest
         self.logger.warn("route_check to %s failed: %s", dest, error_reason)
 
         context = moduleapi.ActionContext(self.name,
-                "route_check: route to {:s} {:s}".format(str(dest), error_reason))
+                "route_check: route to {!s} {:s}".format(dest, error_reason))
 
-        for action in on_error:
+        for action in route_check.on_error:
             try:
                 dispatch.execute_action(action, context)
             except config.ParseError as e:
                 self.logger.error("unable to execute action: %s", str(e))
 
-    def route_check(self, conf, dispatch):
-        """Do route check.
+    def do_route_check(self, route_check, dispatch):
+        """Do a route check.
 
-        Receives a pyhocon.config_tree.ConfigTree objects, containing the
-        description of the route check to perform.
+        Receives a RouteCheckSettings object, containing the settings for
+        the route check.
 
         """
-        dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
+        dest = route_check.rm.dest
         self.logger.debug("checking route to %s", dest)
 
-        non_null = conf.get_bool('non_null', default=False)
-        nexthops_any = conf.get_list('nexthops_any', default=[])
-        on_error = self._get_conf(conf, 'on_error')
-
-        nexthops_any = [netaddr.IPAddress(nh) for nh in nexthops_any]
-
-        if nexthops_any and not non_null:
-            self.logger.info("route to %s has required nexthops, forcing non_null", str(dest))
-            non_null = True
-
-        rm = route.RouteMatch(dest=dest)
-
-        r = self.fib.get_route_to(rm)
+        r = self.fib.get_route_to(route_check.rm)
 
         if r is None:
-            self._route_check_failed(dispatch, dest, on_error, "not found")
+            self._route_check_failed(dispatch, route_check, "not found")
             return False
 
-        self.logger.debug("route found, via %s", self._nexthops_str(r.nexthops))
+        self.logger.debug("route found, via %s", _nexthops_str(r.nexthops))
 
-        if non_null:
+        if route_check.non_null:
             if r.is_null:
-                self._route_check_failed(dispatch, dest, on_error,
+                self._route_check_failed(dispatch, route_check,
                         "{:s}, should be non-null".format(r.rt_type.name))
                 return False
             else:
-                self.logger.debug("route to %s is non-null, as expected", str(dest))
+                self.logger.debug("route to %s is non-null, as expected", dest)
 
-        if nexthops_any:
+        if route_check.nexthops_any:
             for nh in r.nexthops:
-                if nh.gw in nexthops_any:
+                if nh.gw in route_check.nexthops_any:
                     self.logger.debug("route to %s via expected NH %s", dest, nh.gw)
                     break
             else:
                 error_reason = "via {:s}, not in [{:s}]".format(
-                        self._nexthops_str(r.nexthops),
-                        ', '.join(str(ip) for ip in nexthops_any))
-                self._route_check_failed(dispatch, dest, on_error, error_reason)
+                        _nexthops_str(r.nexthops),
+                        ', '.join(str(ip) for ip in route_check.nexthops_any))
+                self._route_check_failed(dispatch, route_check, error_reason)
                 return False
 
         self.logger.info("route_check to %s check satisfied", dest)
 
         return True
-
-    @property
-    def actions(self):
-        """Get the routing table module's actions."""
-        return {'add_route': self.add_route,
-                'replace_route': self.replace_route}
-
-    def add_route(self, conf, context):
-        """Add a route to the FIB.
-
-        Receives a pyhocon.config_tree.ConfigTree instance and an
-        ActionContext.
-
-        """
-        r = self._get_route_action_route(conf)
-
-        self.logger.info("adding route to %s via %s", r.dest, self._nexthops_str(r.nexthops))
-        self.fib.add_route(r)
-
-    def replace_route(self, conf, context):
-        """Replace a route on the FIB, or add if non-existent.
-
-        If the route already exists, it is changed. Otherwise, it is
-        created. Receives a pyhocon.config_tree.ConfigTree instance and an
-        ActionContext.
-
-        """
-        r = self._get_route_action_route(conf)
-
-        self.logger.info("replacing route to %s via %s", r.dest, self._nexthops_str(r.nexthops))
-        self.fib.replace_route(r)
-
-    def _get_route_action_route(self, conf):
-        """Get the route from a route action config.
-
-        This implements the common parts of add_route and replace_route. It
-        parses the action's pyhocon.config_tree.ConfigTree and returns a
-        route.Route, containing the desired route.
-
-        """
-        dest = netaddr.IPNetwork(self._get_conf(conf, 'dest'))
-        nexthops = [
-                route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
-                for gw in conf.get_list('nexthops')
-        ]
-        return route.Route(dest, dest.prefixlen, nexthops,
-                str(self.default_metric), self.proto, route.RouteType.unicast)
-
-    @staticmethod
-    def _nexthops_str(nexthops):
-        """Return a string representation of a list of nexthops."""
-        if len(nexthops) == 1:
-            return str(nexthops[0].gw)
-        else:
-            return "[{:s}]".format(', '.join(str(nh.gw) for nh in nexthops))
-
 
 
 API = FIBModuleAPI

@@ -55,48 +55,33 @@ class Dispatch:
         """Run module behavior."""
 
         errors = False
-        for modinfo in self.config.loaded_modules:
+        for api in self.config.loaded_apis:
             try:
-                self.logger.debug("running module %s", modinfo.api.name)
-                modinfo.api.run(self)
+                self.logger.debug("running module %s", api.name)
+                api.run(self)
             except config.ParseError as e:
-                self.logger.error("config error in module '%s': %s", modinfo.name, str(e))
+                self.logger.error("config error in module '%s': %s", api.name, str(e))
                 errors = True
 
         return not errors
 
-    def execute_action(self, action_conf, context):
+    def execute_action(self, settings, context):
         """Execute an action.
 
-        action_conf is an instance of pyhocon.config_tree.ConfigTree. It
-        must contain an "action" key, which is the name of the action to
-        execute.
-
-        If the action is a full dotted path, e.g. module.action, the action
-        from the corresponding module will be executed. If the action is a
-        relative path (without dots), the action from the calling module
-        will be executed.
+        Receives an instance of moduleapi.ActionSettings and an
+        ActionContext.
 
         """
-        action = action_conf.get_string('action')
+        action_name = settings.action_name
 
-        module_name, _, relative_action = action.rpartition('.')
+        action_class, api = self.config.resolve_action(action_name)
 
-        if not module_name:
-            module_name = context.calling_module
+        # api should only be None if the module isn't loaded, in which case
+        # we shouldn't have gotten here
+        assert api is not None
 
-        self.logger.debug("executing action %s.%s, triggered by %s", module_name,
-                relative_action, context.calling_module)
-
-        try:
-            api = self.config.modules_by_name[module_name].api
-        except KeyError:
-            raise config.ParseError("no such module '{:s}' in action definition".format(module_name))
-
-        if relative_action not in api.actions:
-            raise config.ParseError("action '{:s}' not defined in module '{:s}'".format(action, module_name))
-
-        api.actions[relative_action](action_conf, context)
+        action = action_class(api, settings)
+        action.execute(context)
 
 
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :
