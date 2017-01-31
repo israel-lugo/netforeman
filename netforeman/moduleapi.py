@@ -117,11 +117,6 @@ class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
       respective moduleapi.Action subclasses. This will be used by
       config.resolve_actions.
 
-    The actions must be available in the actions property, in the form of a
-    dictionary of name: function. The function is to receive 2 arguments:
-    conf (an instance of pyhocon.config_tree.ConfigTree) and context (an
-    ActionContext).
-
     """
 
     actions = {}
