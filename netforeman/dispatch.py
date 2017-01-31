@@ -55,12 +55,12 @@ class Dispatch:
         """Run module behavior."""
 
         errors = False
-        for modinfo in self.config.loaded_modules:
+        for api in self.config.loaded_apis:
             try:
-                self.logger.debug("running module %s", modinfo.api.name)
-                modinfo.api.run(self)
+                self.logger.debug("running module %s", api.name)
+                api.run(self)
             except config.ParseError as e:
-                self.logger.error("config error in module '%s': %s", modinfo.name, str(e))
+                self.logger.error("config error in module '%s': %s", api.name, str(e))
                 errors = True
 
         return not errors
@@ -74,7 +74,11 @@ class Dispatch:
         """
         action_name = settings.action_name
 
-        api, action_class = self._resolve_action(action_name)
+        action_class, api = self.config.resolve_action(action_name)
+
+        # api should only be None if the module isn't loaded, in which case
+        # we shouldn't have gotten here
+        assert api is not None
 
         action = action_class(api, settings)
         action.execute(context)

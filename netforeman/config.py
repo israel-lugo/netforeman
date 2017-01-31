@@ -150,47 +150,56 @@ class Configurator:
 
         errors = False
 
-        self.loaded_modules = []
-        self.modules_by_name = {}
-        for name in modules_to_load:
-            self.logger.debug("loading module '%s'", name)
+        # useful to run the APIs in the order they were declared
+        self.loaded_apis = []
 
-            if name in self.modules_by_name:
+        # useful to resolve actions for modules as they are being
+        # configured (and therefore not instantiated)
+        self.module_api_classes_by_name = {}
+
+        # useful to run actions, they need a loaded API
+        self.module_apis_by_name = {}
+
+        for name in modules_to_load:
+            if name in self.module_api_classes_by_name:
                 self.logger.warning("ignoring duplicate entry for module '%s', already loaded", name)
                 continue
 
-            try:
-                modinfo = self.load_module(name)
+            self.logger.debug("loading module '%s'", name)
 
-                self.loaded_modules.append(modinfo)
-                self.modules_by_name[name] = modinfo
+            try:
+                if name not in self.conf:
+                    raise ParseError("missing required section '{:s}'".format(module_name))
+
+                config_tree = self.conf.get_config(name)
+
+                API = self._get_module_api(name)
+                self.module_api_classes_by_name[name] = API
+
+                # settings may call resolve_action for its own actions;
+                # module_api_classes_by_name (above) must already contain
+                # the API class
+                settings = API.settings_from_pyhocon(config_tree, self)
+                api = API(settings)
+
+                self.module_apis_by_name[name] = api
+                self.loaded_apis.append(api)
             except ParseError as e:
                 self.logger.error("module '%s': %s", name, str(e))
                 errors = True
 
         return not errors
 
-    def load_module(self, name):
-        """Load the module with the specified name.
+    def _get_module_api(self, name):
+        """Get the API class for the specified module.
 
-        Returns a ModuleInfo instance. The underlying module will raise
-        ParseError in case of error.
+        Dynamically loads the Python module and returns its subclass of
+        moduleapi.ModuleAPI.
 
         """
         module = importlib.import_module("{:s}.{:s}".format(__package__, name))
 
-        if name not in self.conf:
-            raise ParseError("missing required section '{:s}'".format(module_name))
-
-        config_tree = self.conf.get_config(name)
-
-        settings = module.API.settings_from_pyhocon(config_tree, self)
-
-        api = module.API(settings)
-
-        modinfo = ModuleInfo(name, module, api)
-
-        return modinfo
+        return module.API
 
     def resolve_action(self, action_name):
         """Resolve an action by name.
@@ -198,9 +207,12 @@ class Configurator:
         Receives an action's name, in the format module.action (e.g.
         "email.sendmail"). Relative action names are not allowed.
 
-        Returns the tuple (module_api, action_class). That is, the module
-        API that contains the action and the action class for
-        instantiating.
+        Returns the tuple (action_class, api). That is, the Action
+        subclass, and the loaded instance of the module's API.
+
+        api will be None if the API is not instantiated yet (i.e. this
+        function was called from within the module's settings parser, or
+        there was a previous error while instantiating said module).
 
         Raises ParseError in case of error (e.g. action not found).
 
@@ -222,16 +234,19 @@ class Configurator:
             raise ParseError("missing action name in action definition {:s}".format(action_name))
 
         try:
-            api = self.modules_by_name[module_name].api
+            # load from the class, as the API may not be instantiated yet
+            api_class = self.module_api_classes_by_name[module_name]
         except KeyError:
             raise ParseError("no such module '{:s}' in action definition".format(module_name))
 
-        if action_basename not in api.actions:
+        if action_basename not in api_class.actions:
             raise ParseError("action '{:s}' not defined in module '{:s}'".format(action_name, module_name))
 
-        action_class = api.actions[action_basename]
+        action_class = api_class.actions[action_basename]
 
-        return (api, action_class)
+        api = self.module_apis_by_name.get(module_name, None)
+
+        return (action_class, api)
 
     def configure_action(self, conf):
         """Configure an action.
@@ -245,7 +260,7 @@ class Configurator:
         """
         action_name = conf.get_string('action')
 
-        action_class = self.resolve_action(action_name)[1]
+        action_class = self.resolve_action(action_name)[0]
 
         self.logger.debug("configuring action %s", action_name)
 
