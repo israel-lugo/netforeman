@@ -190,12 +190,6 @@ class EmailModuleAPI(moduleapi.ModuleAPI):
         self.logger.debug("loaded, server %s, target %s",
                 self.settings.server, self.settings.to_address)
 
-    @property
-    def actions(self):
-        """Get the email module's actions."""
-
-        return {'sendmail': ActionSendEmail}
-
 
 API = EmailModuleAPI
 
