@@ -245,7 +245,7 @@ class Configurator:
         """
         action_name = conf.get_string('action')
 
-        api, action_class = self.resolve_action(action_name)
+        action_class = self.resolve_action(action_name)[1]
 
         self.logger.debug("configuring action %s", action_name)
 
