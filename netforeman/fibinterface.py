@@ -161,7 +161,7 @@ class ActionAddReplaceRouteSettings(moduleapi.ActionSettings):
         config.ParseError in case of error.
 
         """
-        action_name = cls._get_conf('action')
+        action_name = cls._get_conf(conf, 'action')
         dest = netaddr.IPNetwork(cls._get_conf(conf, 'dest'))
         nexthops = [
                 route.NextHop(netaddr.IPAddress(gw), None, route.NHType.via)
