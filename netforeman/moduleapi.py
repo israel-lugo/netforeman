@@ -104,9 +104,18 @@ class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
     Modules must override a set of abstract methods and properties. Also,
     they may provide callbacks, known as actions.
 
-    Subclasses MUST define a class attribute _SettingsClass, which should
-    be the appropriate subclass of config.Settings for that module. This
-    will be used by config.Configurable.settings_from_pyhocon.
+    Subclasses MUST define the following class attributes:
+
+      * _SettingsClass
+
+      The appropriate subclass of config.Settings for the API. This will be
+      used by config.Configurable.settings_from_pyhocon.
+
+      * actions
+
+      A dictionary mapping the (relative) action names of the API to their
+      respective moduleapi.Action subclasses. This will be used by
+      config.resolve_actions.
 
     The actions must be available in the actions property, in the form of a
     dictionary of name: function. The function is to receive 2 arguments:
@@ -114,6 +123,9 @@ class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
     ActionContext).
 
     """
+
+    actions = {}
+    """Actions for this API, by name."""
 
     @abc.abstractmethod
     def __init__(self, settings):
@@ -140,12 +152,6 @@ class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
 
         """
         return self.__module__.rpartition('.')[2]
-
-    @property
-    @abc.abstractmethod
-    def actions(self):
-        """Get the module's actions."""
-        return {}
 
     # This method need not be overriden if the module doesn't do anything
     # by itself (e.g. it only exists to provide callable actions).

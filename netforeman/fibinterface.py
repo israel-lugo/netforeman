@@ -298,6 +298,9 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
     _SettingsClass = FIBSettings
     """Settings class for this API."""
 
+    actions = {'add_route': ActionAddRoute, 'replace_route': ActionReplaceRoute}
+    """Actions for this API, by name."""
+
     def __init__(self, settings):
         """Initialize the FIB module.
 
@@ -380,12 +383,6 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
         self.logger.info("route_check to %s check satisfied", dest)
 
         return True
-
-    @property
-    def actions(self):
-        """Get the routing table module's actions."""
-        return {'add_route': ActionAddRoute,
-                'replace_route': ActionReplaceRoute}
 
 
 API = FIBModuleAPI

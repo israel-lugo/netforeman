@@ -174,6 +174,9 @@ class EmailModuleAPI(moduleapi.ModuleAPI):
     _SettingsClass = EmailSettings
     """Settings class for this API."""
 
+    actions = {'sendmail': ActionSendEmail}
+    """Actions for this API, by name."""
+
     def __init__(self, settings):
         """Initialize the email module.
 
