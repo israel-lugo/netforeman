@@ -29,7 +29,7 @@ import netaddr
 import pyroute2
 
 from netforeman import route
-from netforeman import fibinterface
+from netforeman.modules import _fibinterface
 
 
 
@@ -52,7 +52,7 @@ _nl_rttype_to_rttype = [
 ]
 
 
-class LinuxFIBInterface(fibinterface.FIBInterface):
+class LinuxFIBInterface(_fibinterface.FIBInterface):
     """Interface to an underlying Linux FIB."""
 
     def __init__(self):
@@ -67,7 +67,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
     def add_route(self, r):
         """Add a route to the FIB.
 
-        Raises fibinterface.FIBError in case of error (such as no
+        Raises _fibinterface.FIBError in case of error (such as no
         permissions, route already exists, and so on).
 
         """
@@ -76,7 +76,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
     def change_route(self, r):
         """Change an existing route in the FIB.
 
-        Raises fibinterface.FIBError in case of error (such as no
+        Raises _fibinterface.FIBError in case of error (such as no
         permissions, route doesn't exist, and so on).
 
         """
@@ -85,7 +85,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
     def delete_route(self, r):
         """Delete an existing route from the FIB.
 
-        Raises fibinterface.FIBError in case of error (such as no
+        Raises _fibinterface.FIBError in case of error (such as no
         permissions, route doesn't exist, and so on).
 
         """
@@ -94,7 +94,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
     def get_route_to(self, rm):
         """Get a route from the FIB matching the specified route.
 
-        Raises fibinterface.FIBError in case of error (such as no
+        Raises _fibinterface.FIBError in case of error (such as no
         permissions, route doesn't exist, and so on).
 
         """
@@ -103,7 +103,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
             default_routes = self.get_default_routes(rm.family)
             if not default_routes:
                 # XXX we should distinguish between error and no route
-                raise fibinterface.FIBError("no default routes exist for IPv%d"
+                raise _fibinterface.FIBError("no default routes exist for IPv%d"
                         % (4 if rm.family == socket.AF_INET else 6))
 
             # we're supposed to return _a_ route
@@ -112,7 +112,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         try:
             match = self._route_cmd("get", rm)[0]
 
-        except fibinterface.FIBError as e:
+        except _fibinterface.FIBError as e:
             # Unreachable, blackhole or prohibited routes give an error on
             # lookup; check if that's the case and resolve it ourselves.
             # Issue #5. Testing returned ENETUNREACH on some systems,
@@ -126,7 +126,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
                 routes = self.matching_routes_to(rm.dest)
                 if not routes:
                     # no route exists now (race condition, or other error)
-                    raise fibinterface.FIBError("no route exists for %s"
+                    raise _fibinterface.FIBError("no route exists for %s"
                             % rm.dest)
 
                 # return most specific route (should be the null one)
@@ -141,7 +141,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         """Get the list of default routes for the specified family.
 
         The list will be empty if no default routes exist. Raises
-        fibinterface.FIBError in case of error (such as no permissions, and
+        _fibinterface.FIBError in case of error (such as no permissions, and
         so on).
 
         """
@@ -190,7 +190,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         """Replace a route in the FIB.
 
         If the route exists, it is changed. If it doesn't exist, a new one
-        is created. Raises fibinterface.FIBError in case of error (such as
+        is created. Raises _fibinterface.FIBError in case of error (such as
         no permissions, and so on).
 
         """
@@ -201,7 +201,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
 
         cmd must be one of "add", "del", "get", "change" or "replace".
 
-        Returns the result of the command. Raises fibinterface.FIBError in
+        Returns the result of the command. Raises _fibinterface.FIBError in
         case of error (such as no permissions, route already exists, and so
         on).
 
@@ -213,7 +213,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
         try:
             result = self.ipr.route(cmd, **kwargs)
         except pyroute2.netlink.exceptions.NetlinkError as e:
-            raise fibinterface.FIBError(e.args[1], e)
+            raise _fibinterface.FIBError(e.args[1], e)
 
         return result
 
@@ -353,7 +353,7 @@ class LinuxFIBInterface(fibinterface.FIBInterface):
 
 
 
-class LinuxFIBModuleAPI(fibinterface.FIBModuleAPI):
+class LinuxFIBModuleAPI(_fibinterface.FIBModuleAPI):
     """Linux FIB module API."""
     @staticmethod
     def _create_fib():

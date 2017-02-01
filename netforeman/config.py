@@ -198,7 +198,7 @@ class Configurator:
         moduleapi.ModuleAPI.
 
         """
-        module = importlib.import_module("{:s}.{:s}".format(__package__, name))
+        module = importlib.import_module("{:s}.modules.{:s}".format(__package__, name))
 
         return module.API
 
