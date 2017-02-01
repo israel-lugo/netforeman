@@ -25,6 +25,7 @@
 
 import logging
 import abc
+import enum
 
 from netforeman import config
 
@@ -98,6 +99,15 @@ class Action(config.Configurable, metaclass=abc.ABCMeta):
         pass
 
 
+class ModuleRunStatus(enum.IntEnum):
+    """Return codes for ModuleAPI.run(), in order of severity."""
+
+    ok = 0              # all checks satisfied, no actions taken
+    check_failed = 1    # check(s) failed; all actions were run normally
+    action_error = 2    # check(s) failed; at least one action gave an error
+    unknown_error = 3   # unknown error, operational problem
+
+
 class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
     """Base class for the API of all NetForeman modules.
 
@@ -154,7 +164,7 @@ class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
         """Run any configured verifications and actions in this module.
 
         Receives an instance of the module dispatch. This may be used by
-        the module to execute actions.
+        the module to execute actions. Returns a ModuleRunStatus.
 
         This method should be overriden by modules with their own
         independent behavior, e.g. modules that perform user-configured
@@ -162,6 +172,6 @@ class ModuleAPI(config.Configurable, metaclass=abc.ABCMeta):
         callable actions (e.g. sendmail) need not override this.
 
         """
-        pass
+        return ModuleRunStatus.ok
 
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :

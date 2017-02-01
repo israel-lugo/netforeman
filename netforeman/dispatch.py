@@ -26,6 +26,7 @@
 import logging
 
 from netforeman import config
+from netforeman import moduleapi
 
 
 class DispatchError(Exception):
@@ -52,18 +53,22 @@ class Dispatch:
             raise DispatchError("errors while loading modules")
 
     def run(self):
-        """Run module behavior."""
+        """Run module behavior.
 
-        errors = False
+        Returns a moduleapi.ModuleRunStatus.
+
+        """
+
+        status = moduleapi.ModuleRunStatus.ok
         for api in self.config.loaded_apis:
-            try:
-                self.logger.debug("running module %s", api.name)
-                api.run(self)
-            except config.ParseError as e:
-                self.logger.error("config error in module '%s': %s", api.name, str(e))
-                errors = True
+            self.logger.debug("running module %s", api.name)
 
-        return not errors
+            substatus = api.run(self)
+
+            self.logger.debug("module %s returned %s", api.name, substatus.name)
+            status = max(status, substatus)
+
+        return status
 
     def execute_action(self, settings, context):
         """Execute an action.

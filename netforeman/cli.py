@@ -29,6 +29,7 @@ import logging
 import sys
 
 from netforeman import dispatch
+from netforeman import moduleapi
 
 from netforeman.version import __version__
 
@@ -83,11 +84,18 @@ def main():
         logger.error("aborting: %s", str(e))
         return 1
 
-    dispatcher.run()
+    status = dispatcher.run()
 
-    logger.info('all done, terminating...')
+    if status == moduleapi.ModuleRunStatus.ok:
+        logger.info("all done, terminating...")
+    elif status == moduleapi.ModuleRunStatus.check_failed:
+        logger.warn("check(s) failed, all actions executed successfully")
+    elif status == moduleapi.ModuleRunStatus.action_error:
+        logger.error("check(s) failed, at least one action had an error")
+    else:
+        logger.error("finished with unknown errors")
 
-    return 0
+    return int(status)
 
 
 if __name__ == '__main__':

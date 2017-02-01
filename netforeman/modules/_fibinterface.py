@@ -321,13 +321,19 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
     def run(self, dispatch):
         """Run any configured verifications and actions in this module."""
 
+        status = moduleapi.ModuleRunStatus.ok
+
         for route_check in self.settings.route_checks:
-            self.do_route_check(route_check, dispatch)
+            substatus = self.do_route_check(route_check, dispatch)
+            status = max(status, substatus)
+
+        return status
 
     def _route_check_failed(self, dispatch, route_check, error_reason):
         """Handle a failed route check.
 
         Logs a warning and executes the actions in route_check's on_error.
+        Returns True if all actions succeed, False otherwise.
 
         """
         dest = route_check.rm.dest
@@ -336,18 +342,22 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
         context = moduleapi.ActionContext(self.name,
                 "route_check: route to {!s} {:s}".format(dest, error_reason))
 
+        all_ok = True
         for settings in route_check.on_error:
             try:
                 dispatch.execute_action(settings, context)
             except Exception as e:
                 self.logger.error("while executing action %s: %s",
                         settings.action_name, e)
+                all_ok = False
+
+        return all_ok
 
     def do_route_check(self, route_check, dispatch):
         """Do a route check.
 
         Receives a RouteCheckSettings object, containing the settings for
-        the route check.
+        the route check. Returns a ModuleRunStatus.
 
         """
         dest = route_check.rm.dest
@@ -355,17 +365,19 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
 
         r = self.fib.get_route_to(route_check.rm)
 
+        MRS = moduleapi.ModuleRunStatus
+
         if r is None:
-            self._route_check_failed(dispatch, route_check, "not found")
-            return False
+            ok = self._route_check_failed(dispatch, route_check, "not found")
+            return MRS.check_failed if ok else MRS.action_error
 
         self.logger.debug("route found, via %s", _nexthops_str(r.nexthops))
 
         if route_check.non_null:
             if r.is_null:
-                self._route_check_failed(dispatch, route_check,
+                ok = self._route_check_failed(dispatch, route_check,
                         "{:s}, should be non-null".format(r.rt_type.name))
-                return False
+                return MRS.check_failed if ok else MRS.action_error
             else:
                 self.logger.debug("route to %s is non-null, as expected", dest)
 
@@ -378,12 +390,12 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
                 error_reason = "via {:s}, not in [{:s}]".format(
                         _nexthops_str(r.nexthops),
                         ', '.join(str(ip) for ip in route_check.nexthops_any))
-                self._route_check_failed(dispatch, route_check, error_reason)
-                return False
+                ok = self._route_check_failed(dispatch, route_check, error_reason)
+                return MRS.check_failed if ok else MRS.action_error
 
         self.logger.info("route_check to %s check satisfied", dest)
 
-        return True
+        return MRS.ok
 
 
 API = FIBModuleAPI
