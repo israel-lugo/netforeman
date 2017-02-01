@@ -336,11 +336,12 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
         context = moduleapi.ActionContext(self.name,
                 "route_check: route to {!s} {:s}".format(dest, error_reason))
 
-        for action in route_check.on_error:
+        for settings in route_check.on_error:
             try:
-                dispatch.execute_action(action, context)
-            except config.ParseError as e:
-                self.logger.error("unable to execute action: %s", str(e))
+                dispatch.execute_action(settings, context)
+            except Exception as e:
+                self.logger.error("while executing action %s: %s",
+                        settings.action_name, e)
 
     def do_route_check(self, route_check, dispatch):
         """Do a route check.
