@@ -69,11 +69,26 @@ Triggered by a verification failure:
 Installing
 ----------
 
-NetForeman requires Python3, and the following third-party modules:
+NetForeman requires Python 3.
+
+From source
+...........
+
+NetForeman can be run directly from the source directory, as long as the
+requirements are already installed (or copied to the root of the source
+directory).
+
+The following third-party modules are required:
 
 - netaddr_
 - pyhocon_
-- pyroute2_
+- pyroute2_ (>= 0.4.0)
+
+``netaddr`` can be installed with the ``python3-netaddr`` package on a Debian
+or Ubuntu system, or ``dev-python/netaddr`` on a Gentoo system. ``pyroute2``
+would be package ``python3-pyroute2`` on Debian or Ubuntu, but it must be
+version 0.4.0 or greater; it has no Gentoo package available. ``pyhocon`` has
+no package available for Debian, Ubuntu or Gentoo.
 
 
 Contact
