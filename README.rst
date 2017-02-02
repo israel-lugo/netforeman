@@ -81,14 +81,16 @@ directory).
 The following third-party modules are required:
 
 - netaddr_
-- pyhocon_
 - pyroute2_ (>= 0.4.0)
+- pyhocon_ (which in turn requires pyparsing_)
 
 ``netaddr`` can be installed with the ``python3-netaddr`` package on a Debian
 or Ubuntu system, or ``dev-python/netaddr`` on a Gentoo system. ``pyroute2``
 would be package ``python3-pyroute2`` on Debian or Ubuntu, but it must be
 version 0.4.0 or greater; it has no Gentoo package available. ``pyhocon`` has
-no package available for Debian, Ubuntu or Gentoo.
+no package available for Debian, Ubuntu or Gentoo. ``pyparsing`` can be
+installed as ``python3-pyparsing`` on Debian or Ubuntu, or as
+``dev-python/pyparsing`` on Gentoo.
 
 
 Contact
@@ -123,6 +125,6 @@ along with NetForeman.  If not, see <http://www.gnu.org/licenses/>.
 .. |CodacyBadge| image:: https://api.codacy.com/project/badge/Grade/17d405657c76425c8707265fb4360057
    :target: https://www.codacy.com/app/israel-lugo/netforeman
 .. _netaddr: https://github.com/drkjam/netaddr
-.. _pyhocon: https://github.com/chimpler/pyhocon
 .. _pyroute2: https://github.com/svinota/pyroute2
-
+.. _pyhocon: https://github.com/chimpler/pyhocon
+.. _pyparsing: http://pyparsing.wikispaces.com/Download+and+Installation
