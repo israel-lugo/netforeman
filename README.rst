@@ -29,8 +29,10 @@ problems.
 Features
 --------
 
-NetForeman supports both IPv4 and IPv6. It is currently work in progress, not
-yet ready for production use. The following features are planned for now:
+NetForeman supports both IPv4 and IPv6.
+
+This is currently a work in progress; the feature set is under development. The
+following features are planned for now:
 
 Verifications
 .............
