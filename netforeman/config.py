@@ -30,9 +30,7 @@ import importlib
 import pyhocon
 
 
-# TODO: Rename to ConfigError. Configuration could be generated, it isn't
-# necessarily parsed from a file.
-class ParseError(Exception):
+class ConfigError(Exception):
     """Error while parsing configuration."""
     def __init__(self, message):
         self.message = message
@@ -94,14 +92,14 @@ class Settings(metaclass=abc.ABCMeta):
     def _get_conf(conf, name, required=True):
         """Get a value from a pyhocon.config_tree.ConfigTree.
 
-        If the value is missing and required is True, raises a ParseError
+        If the value is missing and required is True, raises a ConfigError
         exception. If the value is missing and required is False, returns
         None.
 
         """
         value = conf.get(name, None)
         if value is None and required:
-            raise ParseError("missing required argument '{:s}'".format(name))
+            raise ConfigError("missing required argument '{:s}'".format(name))
 
         return value
 
@@ -120,7 +118,7 @@ class Configurator:
     def __init__(self, filename):
         """Initializes a Configurator by parsing a configuration file.
 
-        Receives the name of the configuration file. Raises ParseError in
+        Receives the name of the configuration file. Raises ConfigError in
         case of error.
 
         """
@@ -132,7 +130,7 @@ class Configurator:
         try:
             self.conf = pyhocon.ConfigFactory.parse_file(filename)
         except pyhocon.exceptions.ConfigException as e:
-            raise ParseError(str(e))
+            raise ConfigError(str(e))
 
         self.logger.debug("finished reading configuration file")
 
@@ -169,7 +167,7 @@ class Configurator:
 
             try:
                 if name not in self.conf:
-                    raise ParseError("missing required section '{:s}'".format(module_name))
+                    raise ConfigError("missing required section '{:s}'".format(module_name))
 
                 config_tree = self.conf.get_config(name)
 
@@ -184,7 +182,7 @@ class Configurator:
 
                 self.module_apis_by_name[name] = api
                 self.loaded_apis.append(api)
-            except ParseError as e:
+            except ConfigError as e:
                 self.logger.error("module '%s': %s", name, str(e))
                 errors = True
 
@@ -215,7 +213,7 @@ class Configurator:
         function was called from within the module's settings parser, or
         there was a previous error while instantiating said module).
 
-        Raises ParseError in case of error (e.g. action not found).
+        Raises ConfigError in case of error (e.g. action not found).
 
         """
         module_name, _, action_basename = action_name.rpartition('.')
@@ -229,19 +227,19 @@ class Configurator:
         # in *every* configurable object. Not worth it.
 
         if not module_name:
-            raise ParseError("missing module name in action definition {:s}".format(action_name))
+            raise ConfigError("missing module name in action definition {:s}".format(action_name))
 
         if not action_basename:
-            raise ParseError("missing action name in action definition {:s}".format(action_name))
+            raise ConfigError("missing action name in action definition {:s}".format(action_name))
 
         try:
             # load from the class, as the API may not be instantiated yet
             api_class = self.module_api_classes_by_name[module_name]
         except KeyError:
-            raise ParseError("no such module '{:s}' in action definition".format(module_name))
+            raise ConfigError("no such module '{:s}' in action definition".format(module_name))
 
         if action_basename not in api_class.actions:
-            raise ParseError("action '{:s}' not defined in module '{:s}'".format(action_name, module_name))
+            raise ConfigError("action '{:s}' not defined in module '{:s}'".format(action_name, module_name))
 
         action_class = api_class.actions[action_basename]
 

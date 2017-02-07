@@ -143,12 +143,12 @@ class ActionAddReplaceRouteSettings(moduleapi.ActionSettings):
         if not (action_name.endswith(".add_route")
                 or action_name.endswith(".replace_route")):
             # should never happen if our caller uses Dispatch resolution
-            raise config.ParseError("action name '{!s}', should be add_route or replace_route".format(action_name))
+            raise config.ConfigError("action name '{!s}', should be add_route or replace_route".format(action_name))
 
         super().__init__(action_name)
 
         if not nexthops:
-            raise config.ParseError("nexthops list must be non-empty")
+            raise config.ConfigError("nexthops list must be non-empty")
 
         self.route = route.Route(dest, dest.prefixlen, nexthops, str(metric),
                                  proto, rt_type)
@@ -158,7 +158,7 @@ class ActionAddReplaceRouteSettings(moduleapi.ActionSettings):
         """Create ActionAddReplaceRouteSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of ActionAddReplaceRouteSettings. Raises
-        config.ParseError in case of error.
+        config.ConfigError in case of error.
 
         """
         action_name = cls._get_conf(conf, 'action')
@@ -242,7 +242,7 @@ class RouteCheckSettings(config.Settings):
         """Create RouteCheckSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of RouteCheckSettings. Raises
-        config.ParseError in case of error.
+        config.ConfigError in case of error.
 
         """
         dest = netaddr.IPNetwork(cls._get_conf(conf, 'dest'))
@@ -276,7 +276,7 @@ class FIBSettings(config.Settings):
         """Create FIBSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of FIBSettings. Raises
-        config.ParseError in case of error.
+        config.ConfigError in case of error.
 
         """
         route_checks = [

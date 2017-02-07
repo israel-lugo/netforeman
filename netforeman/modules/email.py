@@ -64,7 +64,7 @@ class EmailSettings(config.Settings):
         try:
             self.port = int(port)
         except ValueError:
-            raise config.ParseError("invalid port value '%s'" % str(port))
+            raise config.ConfigError("invalid port value '%s'" % str(port))
 
         self.default_subject = default_subject
         self.username = username
@@ -75,7 +75,7 @@ class EmailSettings(config.Settings):
         """Create EmailSettings from a pyhocon ConfigTree.
 
         Returns a newly created instance of EmailSettings. Raises
-        config.ParseError in case of error.
+        config.ConfigError in case of error.
 
         """
         from_address = cls._get_conf(conf, 'from_address')
@@ -106,7 +106,7 @@ class ActionSendEmailSettings(moduleapi.ActionSettings):
         """
         if action_name != "email.sendmail":
             # should never happen if our caller uses Dispatch resolution
-            raise config.ParseError("action name '{!s}', should be email.sendmail".format(action_name))
+            raise config.ConfigError("action name '{!s}', should be email.sendmail".format(action_name))
 
         super().__init__(action_name)
 
@@ -123,7 +123,7 @@ class ActionSendEmailSettings(moduleapi.ActionSettings):
         try:
             text.format(module="", message="")
         except (ValueError, LookupError) as e:
-            raise config.ParseError("invalid value for text: {!s}".format(e))
+            raise config.ConfigError("invalid value for text: {!s}".format(e))
 
         self.text = text
         self.subject = subject
