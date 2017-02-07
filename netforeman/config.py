@@ -265,8 +265,6 @@ class Configurator:
 
         self.logger.debug("configuring action %s", action_name)
 
-        # TODO: Separate config parsing from executing the action.
-
         return action_class.settings_from_pyhocon(conf, self)
 
 
