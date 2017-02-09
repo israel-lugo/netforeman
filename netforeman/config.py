@@ -104,15 +104,6 @@ class Settings(metaclass=abc.ABCMeta):
         return value
 
 
-class ModuleInfo:
-    """Information about a loaded module."""
-
-    def __init__(self, name, module, api):
-        self.name = name
-        self.module = module
-        self.api = api
-
-
 class Configurator:
 
     def __init__(self, filename):
