@@ -51,8 +51,11 @@ class _Email(email.mime.text.MIMEText):
 class EmailSettings(config.Settings):
     """Email module settings."""
 
-    def __init__(self, from_address, to_address, server, port=25,
-            default_subject="Email from NetForeman", username=None,
+    _PORT = 25
+    _DEFAULT_SUBJECT = "Email from NetForeman"
+
+    def __init__(self, from_address, to_address, server, port=_PORT,
+            default_subject=_DEFAULT_SUBJECT, username=None,
             password=None):
         """Initialize an EmailSettings instance."""
         super().__init__()
@@ -81,7 +84,7 @@ class EmailSettings(config.Settings):
         from_address = cls._get_conf(conf, 'from_address')
         to_address = cls._get_conf(conf, 'to_address')
         server = cls._get_conf(conf, 'server')
-        port = cls._get_conf(conf, 'port')
+        port = conf.get('port', cls._PORT)
         username = cls._get_conf(conf, 'username', False)
         password = cls._get_conf(conf, 'password', False)
 
