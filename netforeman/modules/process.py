@@ -119,4 +119,106 @@ class ProcessSettings(config.Settings):
         return cls(process_checks)
 
 
+class ProcessModuleAPI(moduleapi.ModuleAPI):
+    """Process module API."""
+
+    _SettingsClass = ProcessSettings
+    """Settings class for this API."""
+
+    # TODO: Create actions
+    actions = {}
+    """Actions for this API, by name."""
+
+    def __init__(self, settings):
+        """Initialize the Process module.
+
+        Receives a ProcessSettings object, containing the module's settings.
+
+        """
+        super().__init__(settings)
+
+        self.settings = settings
+
+    def run(self, dispatch):
+        """Run any configured verifications and actions in this module."""
+
+        status = moduleapi.ModuleRunStatus.ok
+
+        for process_check in self.settings.process_checks:
+            substatus = self.do_process_check(process_check, dispatch)
+            status = max(status, substatus)
+
+        return status
+
+    def _process_check_failed(self, dispatch, process_check, error_reason):
+        """Handle a failed process check.
+
+        Logs a warning and executes the actions in process_check's
+        on_error. Returns True if all actions succeed, False otherwise.
+
+        """
+        basename = process_check.basename
+        self.logger.warn("process_check for %s failed: %s", basename, error_reason)
+
+        context = moduleapi.ActionContext(self.name,
+                "process_check: process {!s}: {:s}".format(basename, error_reason))
+
+        # XXX: This entire method is almost a duplicate of
+        # FIBModuleAPI._route_check_failed. We should factor this (and
+        # do_*_check) out into some kind of generic check machinery.
+        all_ok = True
+        for settings in process_check.on_error:
+            try:
+                dispatch.execute_action(settings, context)
+            except Exception as e:
+                self.logger.error("while executing action %s: %s",
+                        settings.action_name, e)
+                all_ok = False
+
+        return all_ok
+
+    def do_process_check(self, process_check, dispatch):
+        """Do a process check.
+
+        Receives a ProcessCheckSettings object, containing the settings for
+        the process check. Returns a ModuleRunStatus.
+
+        """
+        basename = process_check.basename
+        cmdline = process_check.cmdline
+        user = process_check.user
+
+        self.logger.debug("checking '%s' processes", basename)
+
+        name_matches = [p for p in psutil.process_iter() if p.name() == basename]
+
+        MRS = moduleapi.ModuleRunStatus
+
+        if not name_matches:
+            ok = self._process_check_failed(dispatch, process_check, "no match for basename")
+            return MRS.check_failed if ok else MRS.action_error
+
+        self.logger.debug("found %d match(es) for '%s'", len(name_matches), basename)
+
+        if cmdline is not None:
+            cmdline_matches = [p for p in name_matches if p.cmdline() == cmdline]
+            if not cmdline_matches:
+                ok = self._process_check_failed(dispatch, process_check, "no match for cmdline")
+                return MRS.check_failed if ok else MRS.action_error
+
+            self.logger.debug("%s match(es) for cmdline '%s'", len(cmdline_matches), cmdline)
+
+        if user is not None:
+            user_matches = [p for p in cmdline_matches if p.username() == user.pw_name]
+            if not user_matches:
+                ok = self._process_check_failed(dispatch, process_check, "no match for user")
+                return MRS.check_failed if ok else MRS.action_error
+
+            self.logger.debug("%s match(es) for user '%s'", len(user_matches), user.pw_name)
+
+        return MRS.ok
+
+
+API = ProcessModuleAPI
+
 # vim: set expandtab smarttab shiftwidth=4 softtabstop=4 tw=75 :
