@@ -85,10 +85,12 @@ class EmailSettings(config.Settings):
         to_address = cls._get_conf(conf, 'to_address')
         server = cls._get_conf(conf, 'server')
         port = conf.get('port', cls._PORT)
+        default_subject = conf.get('default_subject', cls._DEFAULT_SUBJECT)
         username = cls._get_conf(conf, 'username', False)
         password = cls._get_conf(conf, 'password', False)
 
-        return cls(from_address, to_address, server, port, username, password)
+        return cls(from_address, to_address, server, port, default_subject,
+                username, password)
 
 
 class ActionSendEmailSettings(moduleapi.ActionSettings):
