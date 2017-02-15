@@ -23,6 +23,7 @@
 
 """Process handling."""
 
+import subprocess
 import pwd
 
 import psutil
@@ -113,7 +114,8 @@ class ActionExecute(moduleapi.Action):
         """
         self.module.logger.info("executing %s", self.settings.cmdline)
 
-        # TODO: Finish this. Actually do things.
+        # TODO: Read stdout/stderr and do something with it
+        returncode = subprocess.check_call(self.settings.cmdline)
 
 
 class ProcessCheckSettings(config.Settings):
