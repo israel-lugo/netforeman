@@ -31,6 +31,91 @@ from netforeman import config
 from netforeman import moduleapi
 
 
+def _parse_cmdline(cmdline_raw):
+    """Parse a pyhocon cmdline option.
+
+    cmdline_raw must be either a string (which will be split by
+    whitespace), or a list of strings (which will be taken literally as a
+    list of args), or None.
+
+    Returns the cmdline as a list of strings (args).
+
+    """
+    if isinstance(cmdline_raw, str):
+        # split by words
+        cmdline = cmdline_raw.split()
+    else:
+        # assume it's a list, manually split by the user e.g. because
+        # of spaces in arguments
+        cmdline = cmdline_raw
+
+    return cmdline
+
+
+def _get_passwd(uid_or_name):
+    """Get a pwd.struct_passwd for a given UID or username.
+
+    Raises config.ConfigError if the user doesn't exist.
+
+    """
+    try:
+        if isinstance(uid_or_name, int):
+            passwd = pwd.getpwuid(uid_or_name)
+        else:
+            passwd = pwd.getpwnam(uid_or_name)
+    except KeyError:
+        raise config.ConfigError("user {!s} doesn't exist".format(uid_or_name))
+
+    return passwd
+
+
+class ActionExecuteSettings(moduleapi.ActionSettings):
+    """Settings for ActionExecute."""
+
+    def __init__(self, action_name, cmdline, user):
+        """Initialize an ActionExecuteSettings instance.
+
+        cmdline should be a list of str. user should be a
+        pwd.struct_passwd.
+
+        """
+        super().__init__(action_name)
+
+        self.cmdline = cmdline
+        self.user = user
+
+    @classmethod
+    def from_pyhocon(cls, conf, configurator):
+        """Create ActionExecuteSettings from a pyhocon ConfigTree."""
+
+        action_name = cls._get_conf(conf, 'action')
+
+        cmdline_raw = cls._get_conf(conf, 'cmdline')
+        cmdline = _parse_cmdline(cmdline_raw)
+
+        user_raw = cls._get_conf(conf, 'user')
+        user = _get_passwd(user_raw)
+
+        return cls(action_name, cmdline, user)
+
+
+class ActionExecute(moduleapi.Action):
+    """Execute a process action."""
+
+    _SettingsClass = ActionExecuteSettings
+    """Settings class for this action."""
+
+    def execute(self, context):
+        """Execute the action.
+
+        Receives a moduleapi.ActionContext.
+
+        """
+        self.module.logger.info("executing %s", self.settings.cmdline)
+
+        # TODO: Finish this. Actually do things.
+
+
 class ProcessCheckSettings(config.Settings):
     """ProcessCheck settings."""
 
@@ -49,20 +134,6 @@ class ProcessCheckSettings(config.Settings):
         self.user = user
         self.on_error = on_error
 
-    @staticmethod
-    def _get_passwd(uid_or_name):
-        """Get a pwd.struct_passwd for a given UID or username.
-
-        Raises KeyError if the user doesn't exist.
-
-        """
-        if isinstance(uid_or_name, int):
-            passwd = pwd.getpwuid(uid_or_name)
-        else:
-            passwd = pwd.getpwnam(uid_or_name)
-
-        return passwd
-
     @classmethod
     def from_pyhocon(cls, conf, configurator):
         """Create ProcessCheckSettings from a pyhocon ConfigTree.
@@ -72,18 +143,12 @@ class ProcessCheckSettings(config.Settings):
 
         """
         basename = cls._get_conf(conf, 'basename')
-        cmdline_raw = conf.get('cmdline', default=None)
 
-        if isinstance(cmdline_raw, str):
-            # split by words
-            cmdline = cmdline_raw.split()
-        else:
-            # assume it's a list, manually split by the user e.g. because
-            # of spaces in arguments
-            cmdline = cmdline_raw
+        cmdline_raw = conf.get('cmdline', default=None)
+        cmdline = _parse_cmdline(cmdline_raw)
 
         user_raw = conf.get('user', default=None)
-        user = cls._get_passwd(user_raw) if user_raw is not None else None
+        user = _get_passwd(user_raw) if user_raw is not None else None
 
         on_error = [
                 configurator.configure_action(subconf)
@@ -125,8 +190,7 @@ class ProcessModuleAPI(moduleapi.ModuleAPI):
     _SettingsClass = ProcessSettings
     """Settings class for this API."""
 
-    # TODO: Create actions
-    actions = {}
+    actions = {'execute': ActionExecute}
     """Actions for this API, by name."""
 
     def __init__(self, settings):
