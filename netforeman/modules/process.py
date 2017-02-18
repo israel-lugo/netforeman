@@ -114,7 +114,10 @@ class ActionExecute(moduleapi.Action):
         """
         self.module.logger.info("executing %s", self.settings.cmdline)
 
-        # TODO: Read stdout/stderr and do something with it
+        # TODO: Read stdout/stderr and do something with it. We could have
+        # a new "on_output" setting, that specifies an action. We should
+        # create a subclass of Action for "output actions" (e.g. sendmail,
+        # as opposed to add_route).
         returncode = subprocess.check_call(self.settings.cmdline)
 
 
