@@ -154,9 +154,9 @@ class ActionExecute(moduleapi.Action):
 
         with tempfile.TemporaryFile() as output:
             try:
-                returncode = subprocess.check_call(self.settings.cmdline,
-                        stdout=output, stderr=subprocess.STDOUT,
-                        close_fds=True, preexec_fn=self.set_user)
+                subprocess.check_call(self.settings.cmdline, stdout=output,
+                        stderr=subprocess.STDOUT, close_fds=True,
+                        preexec_fn=self.set_user)
             finally:
                 size = output.tell()
                 if size:
