@@ -25,6 +25,7 @@
 
 import os
 import subprocess
+import tempfile
 import pwd
 
 import psutil
@@ -151,12 +152,22 @@ class ActionExecute(moduleapi.Action):
         self.module.logger.info("executing %s as %s", self.settings.cmdline,
                 self.settings.user.pw_name)
 
-        # TODO: Read stdout/stderr and do something with it. We could have
-        # a new "on_output" setting, that specifies an action. We should
-        # create a subclass of Action for "output actions" (e.g. sendmail,
-        # as opposed to add_route).
-        returncode = subprocess.check_call(self.settings.cmdline,
-                preexec_fn=self.set_user)
+        with tempfile.TemporaryFile() as output:
+            try:
+                returncode = subprocess.check_call(self.settings.cmdline,
+                        stdout=output, stderr=subprocess.STDOUT,
+                        close_fds=True, preexec_fn=self.set_user)
+            finally:
+                size = output.tell()
+                if size:
+                    output.seek(0)
+                    # TODO: Read output and do something with it. We should
+                    # have a new "on_output" setting, that specifies an action.
+                    # If "on_output" is unset, we just devnull everything. We
+                    # should create a subclass of Action for "output actions"
+                    # (e.g. sendmail, as opposed to add_route). Problem:
+                    # output is a binary array, as we don't know if it's
+                    # text, or its encoding.
 
 
 class ProcessCheckSettings(config.Settings):
