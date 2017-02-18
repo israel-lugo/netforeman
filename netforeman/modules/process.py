@@ -23,6 +23,7 @@
 
 """Process handling."""
 
+import os
 import subprocess
 import pwd
 
@@ -106,19 +107,56 @@ class ActionExecute(moduleapi.Action):
     _SettingsClass = ActionExecuteSettings
     """Settings class for this action."""
 
+    def set_user(self):
+        """Change to the user specified in settings.
+
+        Receives a pwd.struct_passwd. Changes the real user id, the
+        effective user id and the saved user id to the uid of the specified
+        user. Guarantees that the user ids have really been changed, or
+        terminates the program otherwise. Works on GNU/Linux and a few
+        other Unixes.
+
+        This function is meant to be called from a child process, to change
+        its user id before executing the new program.
+
+        """
+        # We are called by the subprocess module, already within the child
+        # process. stdout and stderr have already been redirected. Any
+        # logging output that is not direct to file/syslog, will end up in
+        # the child's output.
+
+        # Exceptions thrown here will prevent the child program from being
+        # executed, and an subprocess.CalledProcessError exception from the
+        # subprocess module.
+
+        uid = self.settings.user.pw_uid
+        try:
+            os.setresuid(uid, uid, uid)
+        except Exception as e:
+            self.module.logger.error("unable to set user: %s", e)
+            raise
+
+        # be paranoid
+        ruid, euid, suid = os.getresuid()
+        if ruid != uid or euid != uid or suid != uid:
+            self.module.logger.critical("changed UID but it didn't change (quitting for security)")
+            raise RuntimeError()
+
     def execute(self, context):
         """Execute the action.
 
         Receives a moduleapi.ActionContext.
 
         """
-        self.module.logger.info("executing %s", self.settings.cmdline)
+        self.module.logger.info("executing %s as %s", self.settings.cmdline,
+                self.settings.user.pw_name)
 
         # TODO: Read stdout/stderr and do something with it. We could have
         # a new "on_output" setting, that specifies an action. We should
         # create a subclass of Action for "output actions" (e.g. sendmail,
         # as opposed to add_route).
-        returncode = subprocess.check_call(self.settings.cmdline)
+        returncode = subprocess.check_call(self.settings.cmdline,
+                preexec_fn=self.set_user)
 
 
 class ProcessCheckSettings(config.Settings):
