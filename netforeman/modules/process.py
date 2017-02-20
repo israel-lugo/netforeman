@@ -281,7 +281,7 @@ class ProcessModuleAPI(moduleapi.ModuleAPI):
                 "process_check: process {!s}: {:s}".format(basename, error_reason))
 
         action_list = moduleapi.ActionList(self.logger, process_check.on_error)
-        all_ok = action_list.run(dispatch)
+        all_ok = action_list.run(dispatch, context)
 
         return all_ok
 

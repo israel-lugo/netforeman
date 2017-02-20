@@ -104,7 +104,7 @@ class ActionList:
         self.logger = logger
         self.settings = settings
 
-    def run(self, dispatch):
+    def run(self, dispatch, context):
         """Run all the configured actions.
 
         Returns True if all actions completed successfully, False
