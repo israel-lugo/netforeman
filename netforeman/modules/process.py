@@ -176,9 +176,10 @@ class ProcessCheckSettings(config.Settings):
     def __init__(self, basename, on_error, cmdline=None, user=None):
         """Initialize a ProcessCheckSettings instance.
 
-        basename should be a str. on_error should be a list of action
-        settings to execute in case of error. cmdline, if specified, should
-        be a list of str. user if specified should be a pwd.struct_passwd.
+        basename should be a str. on_error should be an instance of
+        ActionListSettings to execute in case of error. cmdline, if
+        specified, should be a list of str. user if specified should be a
+        pwd.struct_passwd.
 
         """
         super().__init__()
@@ -204,10 +205,8 @@ class ProcessCheckSettings(config.Settings):
         user_raw = conf.get('user', default=None)
         user = _get_passwd(user_raw) if user_raw is not None else None
 
-        on_error = [
-                configurator.configure_action(subconf)
-                for subconf in cls._get_conf(conf, 'on_error')
-        ]
+        on_error = moduleapi.ActionListSettings.from_pyhocon(
+                cls._get_conf(conf, 'on_error'), configurator)
 
         return cls(basename, on_error, cmdline, user)
 
@@ -281,17 +280,8 @@ class ProcessModuleAPI(moduleapi.ModuleAPI):
         context = moduleapi.ActionContext(self.name,
                 "process_check: process {!s}: {:s}".format(basename, error_reason))
 
-        # XXX: This entire method is almost a duplicate of
-        # FIBModuleAPI._route_check_failed. We should factor this (and
-        # do_*_check) out into some kind of generic check machinery.
-        all_ok = True
-        for settings in process_check.on_error:
-            try:
-                dispatch.execute_action(settings, context)
-            except Exception as e:
-                self.logger.error("while executing action %s: %s",
-                        settings.action_name, e)
-                all_ok = False
+        action_list = moduleapi.ActionList(self.logger, process_check.on_error)
+        all_ok = action_list.run(dispatch)
 
         return all_ok
 
