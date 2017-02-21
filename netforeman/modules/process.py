@@ -27,11 +27,13 @@ import os
 import subprocess
 import tempfile
 import pwd
+import locale
 
 import psutil
 
 from netforeman import config
 from netforeman import moduleapi
+
 
 
 def _parse_cmdline(cmdline_raw):
@@ -75,17 +77,20 @@ def _get_passwd(uid_or_name):
 class ActionExecuteSettings(moduleapi.ActionSettings):
     """Settings for ActionExecute."""
 
-    def __init__(self, action_name, cmdline, user):
+    def __init__(self, action_name, cmdline, user, on_output=None):
         """Initialize an ActionExecuteSettings instance.
 
         cmdline should be a list of str. user should be a
-        pwd.struct_passwd.
+        pwd.struct_passwd. on_output, if specified, should be an instance
+        of moduleapi.ActionListSettings, to be executed if the command
+        gives out any output on stdout or stderr.
 
         """
         super().__init__(action_name)
 
         self.cmdline = cmdline
         self.user = user
+        self.on_output = on_output
 
     @classmethod
     def from_pyhocon(cls, conf, configurator):
@@ -99,7 +104,11 @@ class ActionExecuteSettings(moduleapi.ActionSettings):
         user_raw = cls._get_conf(conf, 'user')
         user = _get_passwd(user_raw)
 
-        return cls(action_name, cmdline, user)
+        on_output_raw = cls._get_conf(conf, 'on_output', False)
+        on_output = moduleapi.ActionListSettings.from_pyhocon(on_output_raw, configurator) \
+                if on_output_raw else None
+
+        return cls(action_name, cmdline, user, on_output)
 
 
 class ActionExecute(moduleapi.Action):
@@ -107,6 +116,9 @@ class ActionExecute(moduleapi.Action):
 
     _SettingsClass = ActionExecuteSettings
     """Settings class for this action."""
+
+    MAX_DATA_READ = 4096
+    """Maximum data to be read from the output of an executed process."""
 
     def set_user(self):
         """Change to the user specified in settings.
@@ -152,22 +164,40 @@ class ActionExecute(moduleapi.Action):
         self.module.logger.info("executing %s as %s", self.settings.cmdline,
                 self.settings.user.pw_name)
 
+        if self.settings.on_output:
+            self._execute_with_output(context)
+        else:
+            self._execute_without_output(context)
+
+    def _execute_without_output(self, context):
+        """Execute the command, throwing away its output."""
+        subprocess.check_call(self.settings.cmdline,
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT, close_fds=True,
+                preexec_fn=self.set_user)
+
+    def _execute_with_output(self, context):
+        """Execute the command, and capture its output."""
+        output_data = None
         with tempfile.TemporaryFile() as output:
             try:
-                subprocess.check_call(self.settings.cmdline, stdout=output,
+                subprocess.check_call(self.settings.cmdline,
+                        stdin=subprocess.DEVNULL, stdout=output,
                         stderr=subprocess.STDOUT, close_fds=True,
                         preexec_fn=self.set_user)
             finally:
                 size = output.tell()
                 if size:
                     output.seek(0)
-                    # TODO: Read output and do something with it. We should
-                    # have a new "on_output" setting, that specifies an action.
-                    # If "on_output" is unset, we just devnull everything. We
-                    # should create a subclass of Action for "output actions"
-                    # (e.g. sendmail, as opposed to add_route). Problem:
-                    # output is a binary array, as we don't know if it's
-                    # text, or its encoding.
+                    output_data = output.read(self.MAX_DATA_READ)
+
+        if output_data:
+            # TODO: Deal with binary output somehow. For now we're just
+            # converting to text and replacing what we can't decode.
+            encoding = locale.getpreferredencoding()
+            output_text = output_data.decode(encoding, "replace")
+
+            print(output_text)
 
 
 class ProcessCheckSettings(config.Settings):
