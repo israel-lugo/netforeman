@@ -197,7 +197,13 @@ class ActionExecute(moduleapi.Action):
             encoding = locale.getpreferredencoding()
             output_text = output_data.decode(encoding, "replace")
 
-            print(output_text)
+            nested_context = moduleapi.ActionContext(context.calling_module,
+                    context.dispatch,
+                    "{:s}\n\nWhile running the cmdline, the following output was seen:\n\n{:s}".format(
+                        context.message, output_text))
+
+            action_list = moduleapi.ActionList(self.module.logger, self.settings.on_output)
+            action_list = action_list.run(nested_context)
 
 
 class ProcessCheckSettings(config.Settings):
