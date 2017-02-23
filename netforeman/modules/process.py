@@ -307,11 +307,11 @@ class ProcessModuleAPI(moduleapi.ModuleAPI):
         basename = process_check.basename
         self.logger.warn("process_check for %s failed: %s", basename, error_reason)
 
-        context = moduleapi.ActionContext(self.name,
+        context = moduleapi.ActionContext(self.name, dispatch,
                 "process_check: process {!s}: {:s}".format(basename, error_reason))
 
         action_list = moduleapi.ActionList(self.logger, process_check.on_error)
-        all_ok = action_list.run(dispatch, context)
+        all_ok = action_list.run(context)
 
         return all_ok
 

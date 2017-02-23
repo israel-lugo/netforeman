@@ -38,8 +38,9 @@ class ActionContext:
 
     """
 
-    def __init__(self, calling_module, message):
+    def __init__(self, calling_module, dispatch, message):
         self.calling_module = calling_module
+        self.dispatch = dispatch
         self.message = message
 
 
@@ -104,7 +105,7 @@ class ActionList:
         self.logger = logger
         self.settings = settings
 
-    def run(self, dispatch, context):
+    def run(self, context):
         """Run all the configured actions.
 
         Returns True if all actions completed successfully, False
@@ -114,7 +115,7 @@ class ActionList:
         all_ok = True
         for action_settings in self.settings.action_settings_list:
             try:
-                dispatch.execute_action(action_settings, context)
+                context.dispatch.execute_action(action_settings, context)
             except Exception as e:
                 self.logger.error("while executing action %s: %s",
                         action_settings.action_name, e)

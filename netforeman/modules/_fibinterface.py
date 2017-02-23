@@ -337,11 +337,11 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
         dest = route_check.rm.dest
         self.logger.warn("route_check to %s failed: %s", dest, error_reason)
 
-        context = moduleapi.ActionContext(self.name,
+        context = moduleapi.ActionContext(self.name, dispatch,
                 "route_check: route to {!s} {:s}".format(dest, error_reason))
 
         action_list = moduleapi.ActionList(self.logger, route_check.on_error)
-        all_ok = action_list.run(dispatch, context)
+        all_ok = action_list.run(context)
 
         return all_ok
 
