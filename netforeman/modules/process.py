@@ -77,20 +77,20 @@ def _get_passwd(uid_or_name):
 class ActionExecuteSettings(moduleapi.ActionSettings):
     """Settings for ActionExecute."""
 
-    def __init__(self, action_name, cmdline, user, on_output=None):
+    def __init__(self, action_name, cmdline, user, on_text_output=None):
         """Initialize an ActionExecuteSettings instance.
 
         cmdline should be a list of str. user should be a
-        pwd.struct_passwd. on_output, if specified, should be an instance
-        of moduleapi.ActionListSettings, to be executed if the command
-        gives out any output on stdout or stderr.
+        pwd.struct_passwd. on_text_output, if specified, should be an
+        instance of moduleapi.ActionListSettings, to be executed if the
+        command gives out any text output on stdout or stderr.
 
         """
         super().__init__(action_name)
 
         self.cmdline = cmdline
         self.user = user
-        self.on_output = on_output
+        self.on_text_output = on_text_output
 
     @classmethod
     def from_pyhocon(cls, conf, configurator):
@@ -104,11 +104,11 @@ class ActionExecuteSettings(moduleapi.ActionSettings):
         user_raw = cls._get_conf(conf, 'user')
         user = _get_passwd(user_raw)
 
-        on_output_raw = cls._get_conf(conf, 'on_output', False)
-        on_output = moduleapi.ActionListSettings.from_pyhocon(on_output_raw, configurator) \
-                if on_output_raw else None
+        on_text_output_raw = cls._get_conf(conf, 'on_text_output', False)
+        on_text_output = moduleapi.ActionListSettings.from_pyhocon(on_text_output_raw, configurator) \
+                if on_text_output_raw else None
 
-        return cls(action_name, cmdline, user, on_output)
+        return cls(action_name, cmdline, user, on_text_output)
 
 
 class ActionExecute(moduleapi.Action):
@@ -164,7 +164,7 @@ class ActionExecute(moduleapi.Action):
         self.module.logger.info("executing %s as %s", self.settings.cmdline,
                 self.settings.user.pw_name)
 
-        if self.settings.on_output:
+        if self.settings.on_text_output:
             self._execute_with_output(context)
         else:
             self._execute_without_output(context)
@@ -177,7 +177,13 @@ class ActionExecute(moduleapi.Action):
                 preexec_fn=self.set_user)
 
     def _execute_with_output(self, context):
-        """Execute the command, and capture its output."""
+        """Execute the command, and capture its output.
+
+        Only deals with text output for now. Binary output will be decoded
+        in the locale's preferred encoding, and invalid characters
+        replaced.
+
+        """
         output_data = None
         with tempfile.TemporaryFile() as output:
             try:
@@ -202,7 +208,7 @@ class ActionExecute(moduleapi.Action):
                     "{:s}\n\nWhile running the cmdline, the following output was seen:\n\n{:s}".format(
                         context.message, output_text))
 
-            action_list = moduleapi.ActionList(self.module.logger, self.settings.on_output)
+            action_list = moduleapi.ActionList(self.module.logger, self.settings.on_text_output)
             action_list = action_list.run(nested_context)
 
 
