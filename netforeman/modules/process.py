@@ -185,38 +185,44 @@ class ActionExecute(moduleapi.Action):
 
         """
         output_data = None
-        with tempfile.TemporaryFile() as output:
-            try:
-                subprocess.check_call(self.settings.cmdline,
-                        stdin=subprocess.DEVNULL, stdout=output,
-                        stderr=subprocess.STDOUT, close_fds=True,
-                        preexec_fn=self.set_user)
-            finally:
-                size = output.tell()
-                if size:
-                    output.seek(0)
-                    output_data = output.read(self.MAX_DATA_READ)
 
-        if output_data:
-            # TODO: Deal with binary output somehow. For now we're just
-            # converting to text and replacing what we can't decode.
-            encoding = locale.getpreferredencoding()
-            output_text = output_data.decode(encoding, "replace")
+        try:
+            with tempfile.TemporaryFile() as output:
+                try:
+                    subprocess.check_call(self.settings.cmdline,
+                            stdin=subprocess.DEVNULL, stdout=output,
+                            stderr=subprocess.STDOUT, close_fds=True,
+                            preexec_fn=self.set_user)
+                finally:
+                    size = output.tell()
+                    if size:
+                        output.seek(0)
+                        output_data = output.read(self.MAX_DATA_READ)
 
-            maybe_truncated = " ({:d} bytes, truncated to {:d})".format(size, self.MAX_DATA_READ) \
-                    if (size > self.MAX_DATA_READ) else ''
+        finally:
+            # run even if (especially if) subprocess raises an exception
+            # (but after the temporary file is closed)
 
-            nested_context = moduleapi.ActionContext(context.calling_module,
-                    context.dispatch,
-                    ''.join([
-                        context.message,
-                        "\n\nWhile running the cmdline, the following output was seen:",
-                        maybe_truncated,
-                        "\n\n",
-                        output_text]))
+            if output_data:
+                # TODO: Deal with binary output somehow. For now we're just
+                # converting to text and replacing what we can't decode.
+                encoding = locale.getpreferredencoding()
+                output_text = output_data.decode(encoding, "replace")
 
-            action_list = moduleapi.ActionList(self.module.logger, self.settings.on_text_output)
-            action_list = action_list.run(nested_context)
+                maybe_truncated = " ({:d} bytes, truncated to {:d})".format(size, self.MAX_DATA_READ) \
+                        if (size > self.MAX_DATA_READ) else ''
+
+                nested_context = moduleapi.ActionContext(context.calling_module,
+                        context.dispatch,
+                        ''.join([
+                            context.message,
+                            "\n\nWhile running the cmdline, the following output was seen:",
+                            maybe_truncated,
+                            "\n\n",
+                            output_text]))
+
+                action_list = moduleapi.ActionList(self.module.logger, self.settings.on_text_output)
+                action_list = action_list.run(nested_context)
 
 
 class ProcessCheckSettings(config.Settings):
