@@ -80,13 +80,19 @@ def _get_passwd(uid_or_name):
 class ActionExecuteSettings(moduleapi.ActionSettings):
     """Settings for ActionExecute."""
 
-    def __init__(self, action_name, cmdline, user, on_text_output=None):
+    _DEFAULT_TIMEOUT = 5
+
+    def __init__(self, action_name, cmdline, user, on_text_output=None,
+                 timeout=_DEFAULT_TIMEOUT):
         """Initialize an ActionExecuteSettings instance.
 
         cmdline should be a list of str. user should be a
         pwd.struct_passwd. on_text_output, if specified, should be an
         instance of moduleapi.ActionListSettings, to be executed if the
-        command gives out any text output on stdout or stderr.
+        command gives out any text output on stdout or stderr. timeout, if
+        specified and not None, should be the maximum amount of seconds to
+        wait for the process to finish, before killing it and raising an
+        exception (None to wait forever).
 
         """
         super().__init__(action_name)
@@ -94,6 +100,12 @@ class ActionExecuteSettings(moduleapi.ActionSettings):
         self.cmdline = cmdline
         self.user = user
         self.on_text_output = on_text_output
+
+        if timeout is not None and timeout < 0:
+            raise config.ConfigError("invalid negative timeout value {!s}".format(timeout))
+
+        self.timeout = timeout
+
 
     @classmethod
     def from_pyhocon(cls, conf, configurator):
@@ -111,7 +123,14 @@ class ActionExecuteSettings(moduleapi.ActionSettings):
         on_text_output = moduleapi.ActionListSettings.from_pyhocon(on_text_output_raw, configurator) \
                 if on_text_output_raw else None
 
-        return cls(action_name, cmdline, user, on_text_output)
+        # to get a None from pyhocon, user should specify "timeout = null"
+        timeout_raw = conf.get('timeout', cls._DEFAULT_TIMEOUT)
+        try:
+            timeout = float(timeout_raw) if timeout_raw is not None else None
+        except ValueError:
+            raise config.ConfigError("invalid non-numeric timeout '{!s}'".format(timeout_raw))
+
+        return cls(action_name, cmdline, user, on_text_output, timeout)
 
 
 class ActionExecute(moduleapi.Action):
@@ -164,8 +183,9 @@ class ActionExecute(moduleapi.Action):
         Receives a moduleapi.ActionContext.
 
         """
-        self.module.logger.info("executing %s as %s", self.settings.cmdline,
-                self.settings.user.pw_name)
+        timeout_str = "%gs" % self.settings.timeout if self.settings.timeout is not None else "null"
+        self.module.logger.info("executing %s as %s (%s timeout)", self.settings.cmdline,
+                self.settings.user.pw_name, timeout_str)
 
         if self.settings.on_text_output:
             self._execute_with_output(context)
@@ -177,7 +197,7 @@ class ActionExecute(moduleapi.Action):
         subprocess.check_call(self.settings.cmdline,
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT, close_fds=True,
-                preexec_fn=self.set_user)
+                preexec_fn=self.set_user, timeout=self.settings.timeout)
 
     def _execute_with_output(self, context):
         """Execute the command, and capture its output.
@@ -195,7 +215,8 @@ class ActionExecute(moduleapi.Action):
                     subprocess.check_call(self.settings.cmdline,
                             stdin=subprocess.DEVNULL, stdout=output,
                             stderr=subprocess.STDOUT, close_fds=True,
-                            preexec_fn=self.set_user)
+                            preexec_fn=self.set_user,
+                            timeout=self.settings.timeout)
                 finally:
                     size = output.tell()
                     if size:
@@ -205,6 +226,9 @@ class ActionExecute(moduleapi.Action):
         finally:
             # run even if (especially if) subprocess raises an exception
             # (but after the temporary file is closed)
+
+            # TODO: do something if subprocess fails without output, e.g.
+            # non-zero status or timeout (execute the action list anyway?)
 
             if output_data:
                 # TODO: Deal with binary output somehow. For now we're just
