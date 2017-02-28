@@ -40,8 +40,8 @@ def _parse_cmdline(cmdline_raw):
     """Parse a pyhocon cmdline option.
 
     cmdline_raw must be either a string (which will be split by
-    whitespace), or a list of strings (which will be taken literally as a
-    list of args), or None.
+    whitespace), or a list of things that can be converted to string (which
+    will be taken as a list of args), or None.
 
     Returns the cmdline as a list of strings (args).
 
@@ -49,10 +49,13 @@ def _parse_cmdline(cmdline_raw):
     if isinstance(cmdline_raw, str):
         # split by words
         cmdline = cmdline_raw.split()
-    else:
+    elif cmdline_raw is not None:
         # assume it's a list, manually split by the user e.g. because
-        # of spaces in arguments
-        cmdline = cmdline_raw
+        # of spaces in arguments; explicitly convert each element to str,
+        # to deal with cases such as ['sleep', 30]
+        cmdline = [str(i) for i in cmdline_raw]
+    else:
+        cmdline = None
 
     return cmdline
 
