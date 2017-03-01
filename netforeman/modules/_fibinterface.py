@@ -222,8 +222,8 @@ class RouteCheckSettings(config.Settings):
     def __init__(self, dest, on_error, non_null=False, nexthops_any=None):
         """Initialize a RouteCheckSettings instance.
 
-        dest should be netaddr.IPNetwork. on_error should be a list of
-        action settings to execute in case of error.
+        dest should be netaddr.IPNetwork. on_error should be an instance of
+        ActionListSettings to execute in case of error.
 
         """
         super().__init__()
@@ -254,10 +254,8 @@ class RouteCheckSettings(config.Settings):
                 for nh in conf.get_list('nexthops_any', default=[])
         ]
 
-        on_error = [
-            configurator.configure_action(subconf)
-            for subconf in cls._get_conf(conf, 'on_error')
-        ]
+        on_error = moduleapi.ActionListSettings.from_pyhocon(
+                cls._get_conf(conf, 'on_error'), configurator)
 
         return cls(dest, on_error, non_null, nexthops_any)
 
@@ -339,17 +337,11 @@ class FIBModuleAPI(moduleapi.ModuleAPI, metaclass=abc.ABCMeta):
         dest = route_check.rm.dest
         self.logger.warn("route_check to %s failed: %s", dest, error_reason)
 
-        context = moduleapi.ActionContext(self.name,
+        context = moduleapi.ActionContext(self.name, dispatch,
                 "route_check: route to {!s} {:s}".format(dest, error_reason))
 
-        all_ok = True
-        for settings in route_check.on_error:
-            try:
-                dispatch.execute_action(settings, context)
-            except Exception as e:
-                self.logger.error("while executing action %s: %s",
-                        settings.action_name, e)
-                all_ok = False
+        action_list = moduleapi.ActionList(self.logger, route_check.on_error)
+        all_ok = action_list.run(context)
 
         return all_ok
 

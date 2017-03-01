@@ -38,8 +38,9 @@ class ActionContext:
 
     """
 
-    def __init__(self, calling_module, message):
+    def __init__(self, calling_module, dispatch, message):
         self.calling_module = calling_module
+        self.dispatch = dispatch
         self.message = message
 
 
@@ -64,6 +65,63 @@ class ActionSettings(config.Settings, metaclass=abc.ABCMeta):
         """
         super().__init__()
         self.action_name = action_name
+
+
+class ActionListSettings(config.Settings):
+    """Settings for ActionList."""
+
+    def __init__(self, action_settings_list):
+        """Initialize an ActionListSettings instance.
+
+        Receives a list of ActionSettings subclass instances.
+
+        """
+        super().__init__()
+
+        self.action_settings_list = action_settings_list
+
+    @classmethod
+    def from_pyhocon(cls, conf, configurator):
+        """Create ActionListSettings from a list of pyhocon ConfigTrees.
+
+        Returns a newly created instance of ActionListSettings. Raises
+        config.ConfigError in case of error.
+
+        """
+        action_settings_list = [
+                configurator.configure_action(action_conf)
+                for action_conf in conf
+        ]
+
+        return cls(action_settings_list)
+
+
+class ActionList:
+    """A list of actions to be executed."""
+
+    def __init__(self, logger, settings):
+        """Initialize an ActionList instance."""
+
+        self.logger = logger
+        self.settings = settings
+
+    def run(self, context):
+        """Run all the configured actions.
+
+        Returns True if all actions completed successfully, False
+        otherwise.
+
+        """
+        all_ok = True
+        for action_settings in self.settings.action_settings_list:
+            try:
+                context.dispatch.execute_action(action_settings, context)
+            except Exception as e:
+                self.logger.error("while executing action %s: %s",
+                        action_settings.action_name, e)
+                all_ok = False
+
+        return all_ok
 
 
 class Action(config.Configurable, metaclass=abc.ABCMeta):
