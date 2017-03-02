@@ -82,24 +82,25 @@ class ActionExecuteSettings(moduleapi.ActionSettings):
 
     _DEFAULT_TIMEOUT = 5
 
-    def __init__(self, action_name, cmdline, user, on_text_output=None,
+    def __init__(self, action_name, cmdline, user, on_fail_or_output=None,
                  timeout=_DEFAULT_TIMEOUT):
         """Initialize an ActionExecuteSettings instance.
 
         cmdline should be a list of str. user should be a
-        pwd.struct_passwd. on_text_output, if specified, should be an
+        pwd.struct_passwd. on_fail_or_output, if specified, should be an
         instance of moduleapi.ActionListSettings, to be executed if the
-        command gives out any text output on stdout or stderr. timeout, if
-        specified and not None, should be the maximum amount of seconds to
-        wait for the process to finish, before killing it and raising an
-        exception (None to wait forever).
+        command gives out any text output on stdout or stderr, returns a
+        non-zero exit code, times out, or fails to execute for any reason.
+        timeout, if specified and not None, should be the maximum amount of
+        seconds to wait for the process to finish, before killing it and
+        raising an exception (None to wait forever).
 
         """
         super().__init__(action_name)
 
         self.cmdline = cmdline
         self.user = user
-        self.on_text_output = on_text_output
+        self.on_fail_or_output = on_fail_or_output
 
         if timeout is not None and timeout < 0:
             raise config.ConfigError("invalid negative timeout value {!s}".format(timeout))
@@ -119,9 +120,10 @@ class ActionExecuteSettings(moduleapi.ActionSettings):
         user_raw = cls._get_conf(conf, 'user')
         user = _get_passwd(user_raw)
 
-        on_text_output_raw = cls._get_conf(conf, 'on_text_output', False)
-        on_text_output = moduleapi.ActionListSettings.from_pyhocon(on_text_output_raw, configurator) \
-                if on_text_output_raw else None
+        on_fail_or_output_raw = cls._get_conf(conf, 'on_fail_or_output', False)
+        on_fail_or_output = moduleapi.ActionListSettings.from_pyhocon(on_fail_or_output_raw,
+                                                                      configurator) \
+                if on_fail_or_output_raw else None
 
         # to get a None from pyhocon, user should specify "timeout = null"
         timeout_raw = conf.get('timeout', cls._DEFAULT_TIMEOUT)
@@ -130,7 +132,7 @@ class ActionExecuteSettings(moduleapi.ActionSettings):
         except ValueError:
             raise config.ConfigError("invalid non-numeric timeout '{!s}'".format(timeout_raw))
 
-        return cls(action_name, cmdline, user, on_text_output, timeout)
+        return cls(action_name, cmdline, user, on_fail_or_output, timeout)
 
 
 class ActionExecute(moduleapi.Action):
@@ -187,7 +189,7 @@ class ActionExecute(moduleapi.Action):
         self.module.logger.info("executing %s as %s (%s timeout)", self.settings.cmdline,
                 self.settings.user.pw_name, timeout_str)
 
-        if self.settings.on_text_output:
+        if self.settings.on_fail_or_output:
             self._execute_with_output(context)
         else:
             self._execute_without_output(context)
@@ -256,7 +258,7 @@ class ActionExecute(moduleapi.Action):
                 nested_context = moduleapi.ActionContext(context.calling_module,
                         context.dispatch, '\n\n'.join(strings))
 
-                action_list = moduleapi.ActionList(self.module.logger, self.settings.on_text_output)
+                action_list = moduleapi.ActionList(self.module.logger, self.settings.on_fail_or_output)
                 action_list = action_list.run(nested_context)
 
 
