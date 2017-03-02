@@ -208,6 +208,7 @@ class ActionExecute(moduleapi.Action):
 
         """
         output_data = None
+        error_text = None
 
         try:
             with tempfile.TemporaryFile() as output:
@@ -223,30 +224,37 @@ class ActionExecute(moduleapi.Action):
                         output.seek(0)
                         output_data = output.read(self.MAX_DATA_READ)
 
+        except Exception as e:
+            error_text = str(e)
+            raise
+
         finally:
             # run even if (especially if) subprocess raises an exception
             # (but after the temporary file is closed)
 
-            # TODO: do something if subprocess fails without output, e.g.
-            # non-zero status or timeout (execute the action list anyway?)
+            if output_data is not None or error_text is not None:
 
-            if output_data:
-                # TODO: Deal with binary output somehow. For now we're just
-                # converting to text and replacing what we can't decode.
-                encoding = locale.getpreferredencoding()
-                output_text = output_data.decode(encoding, "replace")
+                strings = [context.message]
 
-                maybe_truncated = " ({:d} bytes, truncated to {:d})".format(size, self.MAX_DATA_READ) \
-                        if (size > self.MAX_DATA_READ) else ''
+                if error_text:
+                    strings.append("The cmdline failed:\n\n{:s}".format(error_text))
+
+                if output_data:
+                    # TODO: Deal with binary output somehow. For now we're just
+                    # converting to text and replacing what we can't decode.
+                    encoding = locale.getpreferredencoding()
+                    output_text = output_data.decode(encoding, "replace")
+
+                    maybe_truncated = " ({:d} bytes, truncated to {:d})".format(size, self.MAX_DATA_READ) \
+                            if (size > self.MAX_DATA_READ) else ''
+
+                    strings.append(''.join(["While running the cmdline, the following output was seen:",
+                                            maybe_truncated]))
+
+                    strings.append(output_text)
 
                 nested_context = moduleapi.ActionContext(context.calling_module,
-                        context.dispatch,
-                        ''.join([
-                            context.message,
-                            "\n\nWhile running the cmdline, the following output was seen:",
-                            maybe_truncated,
-                            "\n\n",
-                            output_text]))
+                        context.dispatch, '\n\n'.join(strings))
 
                 action_list = moduleapi.ActionList(self.module.logger, self.settings.on_text_output)
                 action_list = action_list.run(nested_context)
