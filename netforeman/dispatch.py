@@ -46,7 +46,10 @@ class Dispatch:
 
         """
         self.logger = logging.getLogger('netforeman.dispatch')
-        self.config = config.Configurator(config_filename)
+        try:
+            self.config = config.Configurator(config_filename)
+        except config.ConfigError as e:
+            raise DispatchError(str(e))
 
         ok = self.config.load_modules()
         if not ok:
