@@ -37,11 +37,15 @@ from netforeman.version import __version__
 __all__ = [ 'main' ]
 
 
+DEFAULT_LOG_LEVEL = logging.INFO
+"""Default level for the root logger."""
+
+
 def create_logger():
     """Set up logging and return a logger object."""
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(DEFAULT_LOG_LEVEL)
 
     stderr = logging.StreamHandler()
     stderr.setLevel(logging.DEBUG)
@@ -61,6 +65,9 @@ def parse_args():
     parser = argparse.ArgumentParser(
             description="Making sure your network is running smoothly.")
 
+    parser.add_argument('-d', '--debug', action='store_true',
+            help='enable debug verbosity')
+
     parser.add_argument('-V', '--version', action='version',
             version="NetForeman %s" % __version__)
 
@@ -77,6 +84,9 @@ def main():
     logger = create_logger()
 
     args = parse_args()
+
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     try:
         dispatcher = dispatch.Dispatch(args.config_file)
