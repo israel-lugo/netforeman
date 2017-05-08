@@ -34,7 +34,7 @@ setup(
     url='https://github.com/israel-lugo/netforeman',
     version=__version__,
     packages=['netforeman', 'netforeman.modules' ],
-    install_requires=[ 'netaddr>=0.7.12', 'pyroute2>=0.4.0', 'pyhocon>=0.3.35' ],
+    install_requires=[ 'netaddr>=0.7.12', 'pyroute2>=0.4.0', 'pyhocon>=0.3.35', 'psutil>=2.1.1' ],
     entry_points={
         'console_scripts': [ 'netforeman=netforeman.cli:main' ],
     },
